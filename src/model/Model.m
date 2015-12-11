@@ -2,15 +2,16 @@ classdef (Abstract) Model
   properties (Abstract)
     dim                  % dimension of the input space X (determined from x_mean)
     trainGeneration      % # of the generation when the model was built
-    trainMean            % mean of the generation when the model was built
-    trainSigma           % sigma of the generation when the model was built
-    trainBD              % BD of the generation when the model was built
+    trainMean            % mean of the generation when the model was trained
+    trainSigma           % sigma of the generation when the model was trained
+    trainBD              % BD of the generation when the model was trained
     dataset              % .X and .y
     useShift             % whether use shift during generationUpdate()
     shiftMean            % vector of the shift in the X-space
     shiftY               % shift in the f-space
     predictionType       % type of prediction (f-values, PoI, EI)
     transformCoordinates % whether use transformation in the X-space
+    sampleVariables      % variables needed for sampling new points as CMA-ES do
   end
 
   methods (Abstract)
@@ -228,7 +229,7 @@ classdef (Abstract) Model
 
     end
     
-    function obj = train(obj, X, y, xMean, generation, sigma, BD)
+    function obj = train(obj, X, y, xMean, generation, sigma, BD, sampleVariables)
     % train the model based on the data (X,y)
 
       % transform input variables using Mahalanobis distance
@@ -240,6 +241,8 @@ classdef (Abstract) Model
       else
         XTransf = X;
       end
+      obj.trainMean = xMean;
+      obj.sampleVariables = sampleVariables;
 
       % dimensionality reduction
       if (isprop(obj, 'dimReduction') && (obj.dimReduction ~= 1))
