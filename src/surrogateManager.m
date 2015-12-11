@@ -75,15 +75,15 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % TODO: MOVE THIS TO GpModel.m !!!
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  if (strcmpi(surrogateOpts.modelType, 'gp') && ~strcmpi(func2str(newModel.meanFcn), 'meanZero'))
-    % Try to fit two different models and choose the better one after training
-    zeroOpts = surrogateOpts.modelOpts;
-    zeroOpts.meanFcn = 'meanZero';
-    newModelZero = ModelFactory.createModel(surrogateOpts.modelType, ...
-        zeroOpts, xmean');
-  else
-    newModelZero = [];
-  end
+  % if (strcmpi(surrogateOpts.modelType, 'gp') && ~strcmpi(func2str(newModel.meanFcn), 'meanZero'))
+  %   % Try to fit two different models and choose the better one after training
+  %   zeroOpts = surrogateOpts.modelOpts;
+  %   zeroOpts.meanFcn = 'meanZero';
+  %   newModelZero = ModelFactory.createModel(surrogateOpts.modelType, ...
+  %       zeroOpts, xmean');
+  % else
+  %   newModelZero = [];
+  % end
 
   if (countiter == 1)
     lastModel = [];
@@ -157,15 +157,15 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % TODO: MOVE THIS TO GpModel.m !!!
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if (~isempty(newModelZero))
-      % We have created the zero-mean-function GP model, so try to train it
-      newModelZero = newModelZero.train(xTrain, yTrain, xmean', countiter, sigma, BD, sampleVariables);
-      if (~ newModel.isTrained() ... % if newModelZero is not trained niether, it will be recognized)
-          || (newModelZero.isTrained() && newModelZero.trainLikelihood <= newModel.trainLikelihood))
-        fprintf('  using zero-mean model instead of the standard one.\n');
-        newModel = newModelZero;
-      end
-    end
+    % if (~isempty(newModelZero))
+    %   % We have created the zero-mean-function GP model, so try to train it
+    %   newModelZero = newModelZero.train(xTrain, yTrain, xmean', countiter, sigma, BD, sampleVariables);
+    %   if (~ newModel.isTrained() ... % if newModelZero is not trained niether, it will be recognized)
+    %       || (newModelZero.isTrained() && newModelZero.trainLikelihood <= newModel.trainLikelihood))
+    %     fprintf('  using zero-mean model instead of the standard one.\n');
+    %     newModel = newModelZero;
+    %   end
+    % end
     
     nLambdaRest = lambda - missingTrainSize;
     if (newModel.isTrained())
