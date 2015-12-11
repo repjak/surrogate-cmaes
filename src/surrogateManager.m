@@ -38,7 +38,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
   sDefaults.evoControlSwitchBound         = inf;   % 1 .. inf (reasonable 10--30)
   sDefaults.modelType = '';                       % gp | rf
   sDefaults.modelOpts = [];                       % model specific options
-  
+
   surrogateStats = NaN(1, 2);
 
   % copy the defaults settings...
@@ -50,7 +50,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
 
   assert(size(xmean,2) == 1, 'surrogateManager(): xmean is not a column vector!');
   dim = size(xmean,1);
-  
+
   % switching evolution control
   if surrogateOpts.sampleOpts.counteval > surrogateOpts.evoControlSwitchBound*dim
     surrogateOpts.evoControl = surrogateOpts.evoControlSwitchMode;
@@ -89,7 +89,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
     lastModel = [];
     archive = Archive(dim);
   end
-  
+
   if (isempty(newModel))
     % model could not be created :( use the standard CMA-ES
     [fitness_raw, arx, arxvalid, arz, counteval] = sampleCmaes(xmean, sigma, lambda, BD, diagD, fitfun_handle, surrogateOpts.sampleOpts, varargin{:});
@@ -100,7 +100,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
 
   if any(strcmpi(surrogateOpts.evoControl, {'individual', 'restricted'}))
     % Individual-based and restricted-based evolution control
-  
+
     minTrainSize = newModel.getNTrainData();
     % The number of points to be 'pre-sampled'
     assert(surrogateOpts.evoControlPreSampleSize >= 0 && surrogateOpts.evoControlPreSampleSize <= 1, 'preSampleSize out of bounds [0,1]');
@@ -180,11 +180,11 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
         reevalID(pointID(1:nLambdaRest)) = true;
         xToReeval = xExtend(:, reevalID);
         xToReevalValid = xExtendValid(:, reevalID);
-        zToReeval = zExtend(:, reevalID);    
-        
+        zToReeval = zExtend(:, reevalID);
+
       elseif any(strcmpi(newModel.predictionType, {'poi', 'ei'}))
         bestImprovement = 0;
-        % sample 'gamma' populations of size 'nLambdaRest' 
+        % sample 'gamma' populations of size 'nLambdaRest'
         for sampleNumber = 1:surrogateOpts.evoControlIndividualExtension
           [xExtend, xExtendValid, zExtend] = ...
               sampleCmaesNoFitness(xmean, sigma, nLambdaRest, BD, diagD, surrogateOpts.sampleOpts);
@@ -198,7 +198,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
             bestImprovement = actualImprovement;
           end
         end
-        
+
       else
         % sample the enlarged population of size 'gamma * nLambdaRest'
         extendSize = ceil(surrogateOpts.evoControlIndividualExtension ...
@@ -214,7 +214,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
             SurrogateSelector.choosePointsToReevaluate(...
             xExtend, xExtendValid, zExtend, yExtend, nBest, nCluster);
       end
-      
+
       % original-evaluate the chosen points
       [yNew, xNew, xNewValid, zNew, counteval] = ...
           sampleCmaesOnlyFitness(xToReeval, xToReevalValid, zToReeval, xmean, sigma, nLambdaRest, BD, diagD, fitfun_handle, surrogateOpts.sampleOpts, varargin{:});
@@ -232,19 +232,20 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
       newModel.dataset.X = [newModel.dataset.X; xNewValid'];
       newModel.dataset.y = [newModel.dataset.y; yNew'];
       % TODO: control the evolution process according to the model precision
-      
+
       if strcmpi(surrogateOpts.evoControl, {'restricted'}) && ~all(reevalID)
         xTrain = [xTrain; xNewValid'];
         yTrain = [yTrain; yNew'];
         % train the model again
-        newModel = newModel.train(xTrain, yTrain, xmean', countiter, sigma, BD);
-        if (newModel.isTrained())
-          yNewRestricted = newModel.predict((xExtend(:, ~reevalID))');
-          surrogateStats = getModelStatistics(newModel, xmean, sigma, lambda, BD, diagD, surrogateOpts, countiter);
+        retrainedModel = newModel.train(xTrain, yTrain, xmean', countiter, sigma, BD);
+        if (retrainedModel.isTrained())
+          yNewRestricted = retrainedModel.predict((xExtend(:, ~reevalID))');
+          surrogateStats = getModelStatistics(retrainedModel, xmean, sigma, lambda, BD, diagD, surrogateOpts, countiter);
         else
           % use values estimated by the old model
           fprintf('Restricted: The new model could not be trained, using the not-retrained model.\n');
           yNewRestricted = fvalExtend(~reevalID);
+          surrogateStats = getModelStatistics(newModel, xmean, sigma, lambda, BD, diagD, surrogateOpts, countiter);
         end
         yNew = [yNew, yNewRestricted'];
         xNew = [xNew, xExtend(:, ~reevalID)];
@@ -252,7 +253,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
         zNew = [zNew, zExtend(:, ~reevalID)];
 
         % shift the f-values:
-        %   if the model predictions are better than the best original value 
+        %   if the model predictions are better than the best original value
         %   in the model's dataset, shift ALL (!) function values
         %   Note: - all values have to be shifted in order to preserve predicted
         %           ordering of values
@@ -261,8 +262,8 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
         fminDataset = min(newModel.dataset.y);
         fminModel = min(yNewRestricted);
         diff = max(fminDataset - fminModel, 0);
-        fitness_raw = fitness_raw + diff + 1e-10;
-        yNew = yNew + diff + 1e-10;
+        fitness_raw = fitness_raw + 1.000001*diff;
+        yNew = yNew + 1.000001*diff;
       end
 
     else
@@ -328,7 +329,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
     else        % generationEC.evaluateModel() == true
       %
       % evalute the current population with the @lastModel
-      % 
+      %
       % TODO: implement other re-fitting strategies for an old model
 
       if (isempty(lastModel))
@@ -422,7 +423,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
 
     % DEBUG
     % disp(fitness_raw);
-    
+
   else
     error('surrogateManager(): wrong evolution control method');
   end
@@ -430,7 +431,7 @@ end
 
 
 function surrogateStats = getModelStatistics(model, xmean, sigma, lambda, BD, diagD, surrogateOpts, countiter)
-% print and save the statistics about the currently 
+% print and save the statistics about the currently
 % trained model on testing data
   [~, xValidTest, ~] = ...
       sampleCmaesNoFitness(xmean, sigma, lambda, BD, diagD, surrogateOpts.sampleOpts);
@@ -507,7 +508,7 @@ function [newModel, surrogateStats, isTrained] = trainGenerationECModel(model, a
     newModel = model.train(X, y, xmean', countiter, sigma, BD);
     isTrained = (newModel.trainGeneration > 0);
 
-    % DEBUG: print and save the statistics about the currently 
+    % DEBUG: print and save the statistics about the currently
     % trained model on testing data (RMSE and Kendall's correlation)
     if (isTrained)
       fprintf('  model trained on %d points, train ', length(y));
