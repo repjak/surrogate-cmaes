@@ -159,7 +159,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if (~isempty(newModelZero))
       % We have created the zero-mean-function GP model, so try to train it
-      newModelZero = newModelZero.train(xTrain, yTrain, xmean', countiter, sigma, BD);
+      newModelZero = newModelZero.train(xTrain, yTrain, xmean', countiter, sigma, BD, sampleVariables);
       if (~ newModel.isTrained() ... % if newModelZero is not trained niether, it will be recognized)
           || (newModelZero.isTrained() && newModelZero.trainLikelihood <= newModel.trainLikelihood))
         fprintf('  using zero-mean model instead of the standard one.\n');
