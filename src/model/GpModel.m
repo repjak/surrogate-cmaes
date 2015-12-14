@@ -25,7 +25,7 @@ classdef GpModel < Model
     trainLikelihood
 
     % Dimensionality-reduction specific fields
-    dimReduction          % Reduce dimensionality for model by eigenvectors 
+    dimReduction          % Reduce dimensionality for model by eigenvectors
                           % of covatiance matrix in percentage
     reductionMatrix       % Matrix used for dimensionality reduction
   end
@@ -107,7 +107,7 @@ classdef GpModel < Model
       obj.dataset.X = X;
       obj.dataset.y = y;
 
-      % normalize y if specified, @meanZero, or if large y-scale 
+      % normalize y if specified, @meanZero, or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
       if (~obj.options.normalizeY ...
           && (isequal(obj.meanFcn, @meanZero) || (max(y) - min(y)) > 1e4))
@@ -282,7 +282,7 @@ classdef GpModel < Model
           obj.trainLikelihood = fval;
           if (isnan(fval)  ||  initial - fval < 0.1)
             % final likelihood is not a valid value or
-            % the shift in likelihood is almost none, the model is probably 
+            % the shift in likelihood is almost none, the model is probably
             % not trained, do not use it
             trainErr = true;
           end
@@ -342,7 +342,7 @@ classdef GpModel < Model
         return;
       end
       if (isnan(fval))
-        % final likelihood is not a valid value, the model is probably 
+        % final likelihood is not a valid value, the model is probably
         % not trained, do not use it
         trainErr = true;
       end

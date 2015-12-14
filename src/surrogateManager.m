@@ -147,7 +147,7 @@ function [fitness_raw, arx, arxvalid, arz, counteval, surrogateStats] = surrogat
       'BD', BD, ...
       'diagD', diagD, ...
       'sampleOpts', surrogateOpts.sampleOpts);
-    % TODO: omit the unnecessary variables xmean, sigma and BD 
+    % TODO: omit the unnecessary variables xmean, sigma and BD
     % as they are already in sampleVariables
     newModel = newModel.train(xTrain, yTrain, xmean', countiter, sigma, BD, sampleVariables);
 
@@ -520,7 +520,7 @@ function [newModel, surrogateStats, isTrained] = trainGenerationECModel(model, a
       'BD', BD, ...
       'diagD', diagD, ...
       'sampleOpts', surrogateOpts.sampleOpts);
-    % TODO: omit the unnecessary variables xmean, sigma and BD 
+    % TODO: omit the unnecessary variables xmean, sigma and BD
     % as they are already in sampleVariables
     newModel = model.train(X, y, xmean', countiter, sigma, BD, sampleVariables);
     isTrained = (newModel.trainGeneration > 0);
