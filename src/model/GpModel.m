@@ -173,17 +173,6 @@ classdef GpModel < Model
         obj.trainGeneration = generation;
         obj.hyp = rewrap(obj.hyp, opt);
 
-        % Test that we don't have a constant model
-        [~, xTestValid] = ...
-          sampleCmaesNoFitness(obj.sampleVariables.xmean, obj.sampleVariables.sigma, ...
-          2*obj.sampleVariables.lambda, obj.sampleVariables.BD, obj.sampleVariables.diagD, ...
-          obj.sampleVariables.sampleOpts);
-        yPredict = obj.predict(xTestValid');
-        if (max(yPredict) - min(yPredict) < 1e-8)
-          fprintf('GpModel.train(): model output is constant, considering the model as un-trained.\n');
-          obj.trainGeneration = -1;
-        end
-
         % DEBUG OUTPUT:
         fprintf('.. model-training likelihood = %f\n', obj.trainLikelihood);
         % disp(obj.hyp);
