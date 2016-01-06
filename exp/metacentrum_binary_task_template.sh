@@ -56,6 +56,8 @@ fi
 # ulimit -t unlimited
 
 module add matlab
+export MCR_CACHE_ROOT=$SCRATCHDIR/mcr_cache
+mkdir -p $MCR_CACHE_ROOT
 
 echo "====================="
 echo "Compiling..."
@@ -64,9 +66,10 @@ HOME="$RUNDIR"
 make
 
 echo "====================="
-echo -n "Current dir:    "; pwd
-echo    '$HOME =        ' $HOME
-echo    "Will be called:" $MATLAB_BINARY_CALL "$EXPID" "$EXPPATH_SHORT" $ID
+echo -n "Current dir:      "; pwd
+echo    '$HOME =          ' $HOME
+echo    '$MCR_CACHE_ROOT =' $MCR_CACHE_ROOT
+echo    "Will be called:  " $MATLAB_BINARY_CALL \"$EXPID\" \"$EXPPATH_SHORT\" $ID
 echo "====================="
 
 ######### CALL #########
@@ -74,6 +77,8 @@ echo "====================="
 $MATLAB_BINARY_CALL "$EXPID" "$EXPPATH_SHORT" $ID
 #
 ########################
+
+HOME=$lasthome
 
 if [ $? -eq 0 ]; then
   echo `date "+%Y-%m-%d %H:%M:%S"` "  **$EXPID**  ==== FINISHED ===="
