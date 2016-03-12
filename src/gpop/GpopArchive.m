@@ -36,14 +36,13 @@ classdef GpopArchive < Archive
       end % if
     end % function
 
-    function [X, y, idx] = getNearData(obj, n, x)
+    function [X, y] = getNearData(obj, n, x)
       % return @n closest points to point @x in euclidean metrics
       nData = length(obj.y);
 
       if (nData <= n)
         X = obj.X;
         y = obj.y;
-        idx = 1:length(obj.X);
         return;
       end
 
@@ -58,36 +57,18 @@ classdef GpopArchive < Archive
       y = obj.y(idx);
     end
 
-    function [X, y, idx] = getRecentData(obj, n, x, diam, varargin)
-      % return up to @n most recently added points restricted to hypercube around @x
-      % with diameter @diam
-      % varargin -- optional extra parameter is a list of indexes that should be filtered out,
-      % e.g. to avoid points selected by distance
+    function [X, y, idx] = getRecentData(obj, n)
+      % return up to @n most recently added points
       nData = length(obj.y);
       X = []; y = []; idx = [];
 
       if (nData == 0)
         return;
+      else
+        X = obj.X(max(1, nData - n + 1):nData, :);
+        y = obj.y(max(1, nData - n + 1):nData, :);
+        return;
       end
-
-      % indices of points that are in the hypercube per coordinate
-      hypercubeIdx = repmat(x - diam/2, nData, 1) <= obj.X & obj.X <= repmat(x + diam/2, nData, 1);
-
-      % bit-wise sum over all coordinates (columns)
-      inRangeIdx = ones(nData, 1);
-      for c = 1:size(hypercubeIdx, 2)
-        inRangeIdx = inRangeIdx & hypercubeIdx(:, c);
-      end
-
-      if (nargin > 4)
-        inRangeIdx = setdiff(find(inRangeIdx), varargin{1}');
-      end
-
-      % take last 'n' points from the neighbourhood
-      idx = find(inRangeIdx, n, 'last');
-
-      X = obj.X(idx, :);
-      y = obj.y(idx);
     end
   end % methods
 

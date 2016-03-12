@@ -1,4 +1,4 @@
-function [x, fmin, counteval, stopflag] = gpop(fitfun, xstart, gpopOpts, cmOpts, modelOpts)
+function [xbest, fmin, counteval, stopflag, y_eval] = gpop(fitfun, xstart, gpopOpts, cmOpts, modelOpts)
 % Implementation of Gaussian Process Optimization Procedure.
 %
 % Procedure uses a Gaussian process as a surrogate model
@@ -15,10 +15,13 @@ function [x, fmin, counteval, stopflag] = gpop(fitfun, xstart, gpopOpts, cmOpts,
 %   'nr'                  -- number of training points selected by evaluation time
 %   'meritParams'         -- parameters that define surrogate 'merit' functions
 %   'tolXPrtb'            -- tolerance for x improvement before a perturbation is added to 'xbest'
-%   'prtb'                -- standard deviation of Gaussian perturbation
-%   'stopMaxIter'         -- maximum number of iterations
-%   'stopMaxIterPrtb'     -- maximum number of consecutive iterations with little improvement
-%   'stopMaxFunEvals'     -- maximum number of evaluations of @fitfun
+%   'prtb'                -- standard deviation of Gaussian perturbation added on stagnation
+%   'maxFunEvals'         -- maximum number of fitness evaluations
+%   'maxIter'             -- maximum number of iterations
+%   'maxIterPrtb'         -- maximum number of consecutive stagnating iterations
+%   'stopFitness'         -- stop if fitness exceeds specified value, minimization
+%   'tolFunHist'          -- stop if range of recorded fitness changes smaller than 'tolHistFun'
+%   'funHistLen'          -- length of recorded fitness history
 % @cmOpts                 -- CMA-ES options
 % @modelOpts              -- GP model options
 %
@@ -34,111 +37,147 @@ opts = struct(...
   'nc', '5 * dim', ...
   'nr', '5 * dim', ...
   'meritParams', [0 1 2 4], ...
-  'tolXPrtb', 1e-3, ...
+  'tolXPrtb', 1e-8, ...
   'prtb', 1e-2, ...
-  'stopMaxFunEvals', Inf, ...
-  'stopMaxIterPrtb', 10, ...
-  'stopMaxIter', '1e3 * dim^2 / sqrt(opts.nc + opts.nr)');
+  'maxFunEvals', 1e4, ...
+  'maxIter', '1e3 * dim^2 / sqrt(opts.nc + opts.nr)', ...
+  'maxIterPrtb', 'opts.nc + opts.nr', ...
+  'stopFitness', -Inf, ...
+  'tolFunHist', 1e-9, ...
+  'funHistLen', 2 ...
+);
 
 for fname = fieldnames(gpopOpts)'
   opts.(fname{1}) = gpopOpts.(fname{1});
 end
 
-x = Inf(2, 1);
-xbest = xstart';
+xbest = xstart;
 fmin = Inf;
-countiter = 1;
+fhist = NaN(opts.funHistLen, 1);
+countiter = 0;
 counteval = 0;
 stopflag = {};
 iterPrtb = 0;
+y_eval = [];
 
 % eval string parameters
-if ischar(modelOpts.hyp.cov)
-  modelOpts.hyp.cov = eval(modelOpts.hyp.cov);
-end
+if ischar(modelOpts.hyp.cov), modelOpts.hyp.cov = eval(modelOpts.hyp.cov); end
 
 for fname = fieldnames(opts)'
-  if ischar(opts.(fname{1}))
-    opts.(fname{1}) = eval(opts.(fname{1}));
-  end
+  if ischar(opts.(fname{1})), opts.(fname{1}) = eval(opts.(fname{1})); end
 end
 
-model = GpModel(modelOpts, ones(1, dim));
-archive = GpopArchive(dim);
+stopflag = stop_criteria();
 
-% initial search for nc / 2 points with (2,10)-CMA-ES
-cmOptsInit = cmOpts;
-cmOptsInit.ParentNumber = 2;
-cmOptsInit.PopSize = 10;
-cmOptsInit.MaxFunEvals = ceil(opts.nc / 2);
+if isempty(stopflag)
+  countiter = countiter + 1;
 
-[x1 fmin1 counteval1 stopflag1 out1 bestever1 y_eval1] = s_cmaes(fitfun, xstart, 8/3, cmOptsInit);
+  model = GpModel(modelOpts, ones(1, dim));
+  archive = GpopArchive(dim);
 
-xbest = bestever1.x';
-fmin = bestever1.f;
+  % initial search for nc / 2 points with (2,10)-CMA-ES
+  cmOptsInit = cmOpts;
+  cmOptsInit.ParentNumber = 2;
+  cmOptsInit.PopSize = 10;
+  cmOptsInit.MaxFunEvals = ceil(opts.nc / 2);
 
-archive = archive.save(out1.arxvalids', out1.fvalues', countiter);
+  [xCm1, fminCm1, countevalCm1, stopflagCm1, outCm1, besteverCm1, ~] = s_cmaes(fitfun, xstart, 8/3, cmOptsInit);
+
+  xbest = besteverCm1.x;
+  fmin = besteverCm1.f;
+  counteval = counteval + countevalCm1;
+  y_eval = [y_eval; [fmin counteval]];
+  archive = archive.save(outCm1.arxvalids', outCm1.fvalues', countiter);
+  countiter = countiter + 1
+  stopflag = stop_criteria();
+end
 
 while isempty(stopflag)
-  [closestX, closestY, closestIdx] = archive.getNearData(opts.nc, xbest);
-  % diameter of the smallest hypercube containing all closest point
-  diam = max(closestX) - min(closestX);
-  [recentX, recentY, recentIdx] = archive.getRecentData(opts.nr, xbest, diam, closestIdx);
-  trainingX = [closestX; recentX];
-  trainingY = [closestY; recentY];
+  % % uncomment when debugging
+  % try
+  countiter = countiter + 1;
+  sol = []; % array with solutions found for model's current state
 
-  % alternatively: don't filter previously selected points in the second step
-  % this may result in training sets smaller than nc + nr
-  % [recent, recentY] = archive.getRecentData(opts.nr, xbest, diam);
-  % trainingX = union(closestX, recentX, 'rows');
-  % trainingY = union(closestY, recentY, 'rows');
+  % select training data
+  [closestX, closestY] = archive.getNearData(opts.nc, xbest');
+  [recentX, recentY] = archive.getRecentData(opts.nr);
+  trainingX = union(closestX, recentX, 'rows');
+  trainingY = union(closestY, recentY);
 
   % train model
-  model = model.trainModel(trainingX, trainingY, xbest, countiter);
+  model = model.trainModel(trainingX, trainingY, xbest', countiter);
 
-  % optimize all variants of model prediction
-  for a = opts.meritParams
-    sol = {}; % array with solutions found in current iteration
+  if model.isTrained()
+    % restrict CMA-ES search area to xbest's neighbourhood
+    d = max(closestX)' - min(closestX)';
+    cmOpts.LBounds = xbest - d/2;
+    cmOpts.UBounds = xbest + d/2;
+    sigma = max(min(d/2 - 1e-8, 8/3), 1e-8);
 
-    % minimize surrogate function
-    fun = @(x) surrogateFcn(x, a, model);
-    [xCm fminCm countevalCm stopflagCm outCm besteverCm y_evalCm] = s_cmaes(fun, xbest, 8/3, cmOpts);
-    counteval = counteval + countevalCm;
+    % optimize all variants of model prediction
+    for a = opts.meritParams
+      % minimize surrogate function
+      fun = @(x) surrogateFcn(x, a, model);
+      [xCm, fminCm, ~, stopflagCm, ~, besteverCm, ~] = s_cmaes(fun, xbest, sigma, cmOpts);
+      x = besteverCm.x;
 
-    % save new solutions to archive
-    if (~archive.isMember(besteverCm.x', opts.tolXPrtb))
-      sol(end+1) = {besteverCm};
-      archive = archive.save(besteverCm.x', besteverCm.f, countiter);
-    end
-  end % for
+      % evaluate model optima and save new solutions to archive
+      if (~archive.isMember(x', opts.tolXPrtb))
+        y = eval_fitness(x);
+        sol = [sol [x; y]];
 
-  if isempty(sol)
-    % add a Gaussian perturbation to the training data
-    iterPrtb = iterPrtb + 1;
-    x = xbest + randn() * diam * opts.prtb;
-    y = fun(x');
-    counteval = counteval + 1;
-    archive = archive.save(x, y, countiter);
-  else
-    % update xbest
-    for i = 1:length(sol)
-      if sol{i}.f < fmin
-        xbest = sol{i}.x';
-        fmin = sol{i}.f;
+        % stop criteria
+        stop_flag = stop_criteria();
       end
+    end % for
+  end % if
+
+  if isempty(stopflag)
+    if isempty(sol)
+      % no solution found or model not trained
+      % add a Gaussian perturbation of xbest to the training data
+      x = xbest + randn() * d * opts.prtb;
+      eval_fitness(x);
+      iterPrtb = iterPrtb + 1;
+    else
+      iterPrtb = 0;
     end
-    iterPrtb = 0;
+
+    stopflag = stop_criteria();
   end
 
-  % stop criteria
-  if iterPrtb >= opts.stopMaxIterPrtb, stopflag(end+1) = {'maxiterprtb'}; end
-  if counteval >= opts.stopMaxFunEvals, stopflag(end+1) = {'maxfunevals'}; end
-  if countiter >= opts.stopMaxIter, stopflag(end+1) = {'maxiter'}; end
-
-  countiter = countiter + 1;
-  x = xbest';
+  y_eval = [y_eval; [fmin counteval]];
+  % catch err
+  %   disp(err.message);
+  % end % catch
 end % while
+  
+  function flag = stop_criteria()
+    % return flags of any stopping criteria that hold true
+    flag = {};
+    if iterPrtb >= opts.maxIterPrtb, flag(end+1) = {'maxiterprtb'}; end
+    if counteval >= opts.maxFunEvals, flag(end+1) = {'maxfunevals'}; end
+    if countiter >= opts.maxIter, flag(end+1) = {'maxiter'}; end
+    if fmin <= opts.stopFitness, flag(end+1) = { 'fitness' }; end
+    if countiter >= length(fhist) && max(fhist) - min(fhist) <= opts.tolFunHist
+      flag(end+1) = { 'tolfunhist' };
+    end
+  end % function
 
+  function y = eval_fitness(x)
+    y = feval(fitfun, x);
+
+    counteval = counteval + 1;
+    archive = archive.save(x', y, countiter);
+    
+    fhist(2:end) = fhist(1:end-1);
+    fhist(1) = y;
+
+    if y < fmin
+      xbest = x;
+      fmin = y;
+    end % if
+  end % function
 end % function
 
 

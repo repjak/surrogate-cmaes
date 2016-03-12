@@ -5,9 +5,9 @@ exp_description = 'GPOP (Buche) with GP and CMA-ES, 24, functions, 15 instances'
 
 bbobParams = { ...
   'dimensions',              { 2, 5, 10 }, ...
-  'functions',               num2cell(1:24), ...      % function ID's to optimize (2 Sphere, 3 Rastrigin, 8 Rosenbrock)
+  'functions',               { 2, 3, 8, 20 } ...      % Buche, 2005: 2 Sphere, 3 Rastrigin, 8 Rosenbrock, 20 Schwefel; all: num2cell(1:24)
   'opt_function',            { @opt_gpop }, ...
-  'instances',               { [1:5 31:40] }, ...     % default is [1:5, 41:50]
+  'instances',               { [1:5 41:50] }, ...     % default is [1:5, 41:50]
   'maxfunevals',             { '250 * dim' }, ...
 };
 
@@ -17,8 +17,11 @@ surrogateParams = { ...
   'gpop_nc',                 { '5 * dim' }, ...       % number of training points selected by distance to xbest
   'gpop_nr',                 { 'opts.nc' }, ...       % number of training points selected by time of evaluation
   'gpop_meritParams',        { [0 1 2 4] }, ...       % parameters of merit function (added density measure)
-  'gpop_tolXPrtb',           { 1e-3 }, ...            % tolerance for improvement before a perturbation is used
-};
+  'gpop_tolXPrtb',           { 1e-8 }, ...            % tolerance for improvement before a perturbation is considered
+  'gpop_maxIterPrtb',        { 4 }, ...               % maximum number of consecutive perturbations
+  'gpop_tolFunHist',         { 1e-9 }, ...            % stop if range of recorded f-values lower than tolFunHist
+  'gpop_funHistLen',         { 2 }, ...               % length of recorded f-values history
+  };
 
 % Model parameters
 
@@ -30,7 +33,7 @@ modelParams = { ...
                                  'cov', 'log([0.5 * ones(dim, 1); 0.1; 0.01; 1e-4])' ... % ell, signal variance, const shift, signal noise
                                ), ...
                              }, ...
-  'normalizeY', { true }, ...
+  'normalizeY',              { true }, ...
 };
 
 % CMA-ES parameters

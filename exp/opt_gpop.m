@@ -1,5 +1,5 @@
 function [x, ilaunch, y_evals, stopflag, varargout] = opt_gpop(FUN, dim, ftarget, maxfunevals, id, varargin)
-% minimizes FUN in DIM dimensions by multistarts of fminsearch.
+% minimizes FUN in dim dimensions by multistarts of gpop.
 % ftarget and maxfunevals are additional external termination conditions,
 % where at most 2 * maxfunevals function evaluations are conducted.
 %
@@ -12,28 +12,28 @@ function [x, ilaunch, y_evals, stopflag, varargout] = opt_gpop(FUN, dim, ftarget
 
 % Be aware: 'id' is an additional parameter!
 
+varargout = cell(nargout);
+
 xstart = 8 * rand(dim, 1) - 4; % random start solution
 
-% fDelta = 1e-8;
+fDelta = 1e-8;
 
 % GPOP defaults
 gpopOptions = struct( ...
-  'stopMaxFunEvals', min(1e8*dim, maxfunevals), ...
-  'stopMaxIter', 40 * maxfunevals, ...
-  'stopMaxIterPrtb', 10);
+  'maxFunEvals', min(1e8*dim, maxfunevals), ...
+  'stopFitness', ftarget ...
+);
 
 % CMA-ES defaults
-% TODO: termination criteria for individual CMA-ES runs
-%  'MaxFunEvals', min(1e8*DIM, maxfunevals), ...
-%  'StopFitness', ftarget, ...
 cmOptions = struct( ...
-  'MaxFunEvals', min(10*dim, maxfunevals), ...
+  'MaxFunEvals', 2000, ...
   'LBounds', -5, ...
   'UBounds',  5, ...
   'LogTime',  0, ...
   'SaveVariables', 'off', ...
   'LogModulo', 0, ...
-  'DispModulo', '10');
+  'DispModulo', '0' ...
+);
 
 y_evals = [];
 
@@ -67,24 +67,22 @@ for ilaunch = 1:1e4
   sgParams.modelOpts.bbob_func = bbob_handlesF{bbParams.functions(1)};
   sgParams.expFileID = [num2str(bbParams.functions(1)) '_' num2str(dim) 'D_' num2str(id)];
 
-  [x, fmin, counteval, stopflag] = gpop(FUN, xstart, gpopOptions, cmOptions, sgParams.modelOpts);
+  [x, fmin, counteval, stopflag, y_eval] = gpop(FUN, xstart, gpopOptions, cmOptions, sgParams.modelOpts);
 
-  % TODO: y_eval
-  varargout = cell(0);
+  n_y_evals = size(y_eval,1);
+  y_eval(:,1) = y_eval(:,1) - (ftarget - fDelta) * ones(n_y_evals,1);
+  y_evals = [y_evals; y_eval];
 
   if (feval(FUN, 'fbest') < ftarget || ...
       feval(FUN, 'evaluations') >= maxfunevals)
     break;
   end
 
+  % % terminate with some probability
+  % if rand(1,1) > 0.98/sqrt(ilaunch)
+  %   break;
+  % end
   xstart = x;
 end % for
-
-  function stop = callback(x, optimValues, state)
-    stop = false;
-    if optimValues.fval < ftarget
-      stop = true;
-    end
-  end % function callback
 
 end % function
