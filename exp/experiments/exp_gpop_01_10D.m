@@ -18,7 +18,7 @@ surrogateParams = { ...
   'gpop_nr',                 { 'opts.nc' }, ...       % number of training points selected by time of evaluation
   'gpop_meritParams',        { [0 1 2 4] }, ...       % parameters of merit function (added density measure)
   'gpop_tolXPrtb',           { 1e-8 }, ...            % tolerance for improvement before a perturbation is considered
-  'gpop_maxIterPrtb',        { 4 }, ...               % maximum number of consecutive perturbations
+  'gpop_maxIterPrtb',        { 2 }, ...               % maximum number of consecutive perturbations
   'gpop_tolFunHist',         { 1e-9 }, ...            % stop if range of recorded f-values lower than tolFunHist
   'gpop_funHistLen',         { 2 }, ...               % length of recorded f-values history
   };

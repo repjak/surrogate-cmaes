@@ -88,7 +88,7 @@ if isempty(stopflag)
   counteval = counteval + countevalCm1;
   y_eval = [y_eval; [fmin counteval]];
   archive = archive.save(outCm1.arxvalids', outCm1.fvalues', countiter);
-  countiter = countiter + 1
+  countiter = countiter + 1;
   stopflag = stop_criteria();
 end
 
@@ -121,30 +121,34 @@ while isempty(stopflag)
       [xCm, fminCm, ~, stopflagCm, ~, besteverCm, ~] = s_cmaes(fun, xbest, sigma, cmOpts);
       x = besteverCm.x;
 
-      % evaluate model optima and save new solutions to archive
       if (~archive.isMember(x', opts.tolXPrtb))
+        % evaluate model optima and save new solutions to archive
         y = eval_fitness(x);
         sol = [sol [x; y]];
-
-        % stop criteria
-        stop_flag = stop_criteria();
-      end
+        stopflag = stop_criteria();
+        if ~isempty(stopflag)
+          return;
+        end % if
+      end % if
     end % for
   end % if
 
-  if isempty(stopflag)
-    if isempty(sol)
-      % no solution found or model not trained
-      % add a Gaussian perturbation of xbest to the training data
-      x = xbest + randn() * d * opts.prtb;
-      eval_fitness(x);
-      iterPrtb = iterPrtb + 1;
-    else
-      iterPrtb = 0;
-    end
-
-    stopflag = stop_criteria();
+  if isempty(sol)
+    % no solution found or model not trained
+    % add a Gaussian perturbation of xbest to the training data
+    x = xbest + randn() * d * opts.prtb;
+    y = eval_fitness(x);
+    fhist(2:end) = fhist(1:end-1);
+    fhist(1) = y;
+    iterPrtb = iterPrtb + 1;
+  else
+    % save only the best solution in current iteration to the history
+    fhist(2:end) = fhist(1:end-1);
+    fhist(1) = min(sol(2,:));
+    iterPrtb = 0;
   end
+
+  stopflag = stop_criteria();
 
   y_eval = [y_eval; [fmin counteval]];
   % catch err
@@ -159,7 +163,8 @@ end % while
     if counteval >= opts.maxFunEvals, flag(end+1) = {'maxfunevals'}; end
     if countiter >= opts.maxIter, flag(end+1) = {'maxiter'}; end
     if fmin <= opts.stopFitness, flag(end+1) = { 'fitness' }; end
-    if countiter >= length(fhist) && max(fhist) - min(fhist) <= opts.tolFunHist
+    if (countiter >= max([length(fhist) opts.nc])) && ...
+        (max(fhist) - min(fhist) <= opts.tolFunHist)
       flag(end+1) = { 'tolfunhist' };
     end
   end % function
@@ -169,9 +174,6 @@ end % while
 
     counteval = counteval + 1;
     archive = archive.save(x', y, countiter);
-    
-    fhist(2:end) = fhist(1:end-1);
-    fhist(1) = y;
 
     if y < fmin
       xbest = x;
