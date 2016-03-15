@@ -22,6 +22,7 @@ function [xbest, fmin, counteval, stopflag, y_eval] = gpop(fitfun, xstart, gpopO
 %   'stopFitness'         -- stop if fitness exceeds specified value, minimization
 %   'tolFunHist'          -- stop if range of recorded fitness changes smaller than 'tolHistFun'
 %   'funHistLen'          -- length of recorded fitness history
+%   'logModulo'           -- log inner variables every nth iteration
 % @cmOpts                 -- CMA-ES options
 % @modelOpts              -- GP model options
 %
@@ -44,7 +45,8 @@ opts = struct(...
   'maxIterPrtb', 'opts.nc + opts.nr', ...
   'stopFitness', -Inf, ...
   'tolFunHist', 1e-9, ...
-  'funHistLen', 2 ...
+  'funHistLen', 2, ...
+  'logModulo', 100 ...
 );
 
 for fname = fieldnames(gpopOpts)'
@@ -88,8 +90,8 @@ if isempty(stopflag)
   counteval = counteval + countevalCm1;
   y_eval = [y_eval; [fmin counteval]];
   archive = archive.save(outCm1.arxvalids', outCm1.fvalues', countiter);
-  countiter = countiter + 1;
   stopflag = stop_criteria();
+  log_state();
 end
 
 while isempty(stopflag)
@@ -151,11 +153,13 @@ while isempty(stopflag)
   stopflag = stop_criteria();
 
   y_eval = [y_eval; [fmin counteval]];
+
+  if mod(countiter-1, opts.logModulo) == 0, log_state(); end
   % catch err
   %   disp(err.message);
   % end % catch
 end % while
-  
+
   function flag = stop_criteria()
     % return flags of any stopping criteria that hold true
     flag = {};
@@ -179,6 +183,15 @@ end % while
       xbest = x;
       fmin = y;
     end % if
+  end % function
+
+  function log_state()
+    varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
+      'iterPrtb', 'stopflag' };
+    t = table([countiter], [fmin], xbest', [counteval], ...
+      { max(fhist) - min(fhist) }, iterPrtb, { stopflag }, ...
+      'VariableNames', varnames);
+    disp(t);
   end % function
 end % function
 
