@@ -116,19 +116,23 @@ while isempty(stopflag)
     cmOpts.UBounds = xbest + d/2;
     sigma = max(min(d/2 - 1e-8, 8/3), 1e-8);
 
-    % optimize all variants of model prediction
-    for a = opts.meritParams
+    % optimize all variants of model prediction with parallel workers
+    parfor i = 1:length(opts.meritParams)
       % minimize surrogate function
-      fun = @(x) surrogateFcn(x, a, model);
+      fun = @(x) surrogateFcn(x, opts.meritParams(i), model);
       [xCm, fminCm, ~, stopflagCm, ~, besteverCm, ~] = s_cmaes(fun, xbest, sigma, cmOpts);
-      x = besteverCm.x;
+      res(:, i) = besteverCm.x;
+    end % parfor
 
+    % evaluate model optima and save new solutions to archive
+    for x = res
       if (~archive.isMember(x', opts.tolXPrtb))
-        % evaluate model optima and save new solutions to archive
         y = eval_fitness(x);
         sol = [sol [x; y]];
         stopflag = stop_criteria();
         if ~isempty(stopflag)
+          y_eval = [y_eval; [fmin counteval]];
+          log_state();
           return;
         end % if
       end % if
@@ -188,7 +192,7 @@ end % while
   function log_state()
     varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
       'iterPrtb', 'stopflag' };
-    t = table([countiter], [fmin], xbest', [counteval], ...
+    t = table([countiter], [fmin], { xbest' }, [counteval], ...
       { max(fhist) - min(fhist) }, iterPrtb, { stopflag }, ...
       'VariableNames', varnames);
     disp(t);
