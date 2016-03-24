@@ -92,6 +92,6 @@ for ilaunch = 1:1e4
 end % for
 
 % delete parpool
-if exist(pool), delete(pool); end
+if exist('pool'), delete(pool); end
 
 end % function
