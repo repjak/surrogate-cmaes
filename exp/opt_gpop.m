@@ -63,7 +63,7 @@ for fname = fieldnames(sgParams)'
 end
 
 % start parpool
-if gpopOptions.parpoolSize > 1
+if gpopOptions.parpoolSize > 1 && exist('parpool', 'file')
   pool = parpool(gpopOptions.parpoolSize);
 end
 
@@ -92,6 +92,6 @@ for ilaunch = 1:1e4
 end % for
 
 % delete parpool
-if exist('pool'), delete(pool); end
+if exist('pool', 'var'), delete(pool); end
 
 end % function
