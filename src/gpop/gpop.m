@@ -61,6 +61,7 @@ counteval = 0;
 stopflag = {};
 iterPrtb = 0;
 y_eval = [];
+surrogateStats = NaN(1, 2);
 
 % eval string parameters
 if ischar(modelOpts.hyp.cov), modelOpts.hyp.cov = eval(modelOpts.hyp.cov); end
@@ -88,7 +89,7 @@ if isempty(stopflag)
   xbest = besteverCm1.x;
   fmin = besteverCm1.f;
   counteval = counteval + countevalCm1;
-  y_eval = [y_eval; [fmin counteval]];
+  y_eval = [y_eval; fmin counteval surrogateStats];
   archive = archive.save(outCm1.arxvalids', outCm1.fvalues', countiter);
   stopflag = stop_criteria();
   log_state();
@@ -131,7 +132,7 @@ while isempty(stopflag)
         sol = [sol [x; y]];
         stopflag = stop_criteria();
         if ~isempty(stopflag)
-          y_eval = [y_eval; [fmin counteval]];
+          y_eval = [y_eval; fmin counteval surrogateStats];
           log_state();
           return;
         end % if
@@ -156,7 +157,7 @@ while isempty(stopflag)
 
   stopflag = stop_criteria();
 
-  y_eval = [y_eval; [fmin counteval]];
+  y_eval = [y_eval; fmin counteval surrogateStats];
 
   if mod(countiter-1, opts.logModulo) == 0, log_state(); end
   % catch err
