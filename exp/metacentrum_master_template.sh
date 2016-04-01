@@ -77,6 +77,15 @@ else
   lasthome="$HOME"
   HOME=$COMPILE_DIR
 
+  if [ -f `basename $MATLAB_BINARY_CALL` ]; then
+    echo "Warning: the matlab binary already exists, compilation will be skipped"
+    echo " :: You can interrupt the Task scheduling within the next 5 seconds."
+    echo " :: Run following command if you want to recompile the target:"
+    echo "rm $COMPILE_DIR/"`basename $MATLAB_BINARY_CALL`
+    echo ""
+    sleep 5
+  fi
+
   make
 
   if [ $? -gt 0 ]; then
