@@ -19,7 +19,7 @@ function bbob_test_01(id, exp_id, exppath_short, varargin)
   exppath = [exppath_short filesep exp_id];
   load([exppath filesep 'scmaes_params.mat']);
   [bbParams, surrogateParams, cmaesParams, nNonBbobValues] = getParamsFromIndex(id, bbParamDef, sgParamDef, cmParamDef);
-  
+
   % BBOB constant parameters
   minfunevals = 'dim + 2';  % PUT MINIMAL SENSIBLE NUMBER OF EVALUATIONS for a restart
   maxrestarts = 1e4;        % SET to zero for an entirely deterministic algorithm
@@ -54,6 +54,14 @@ function bbob_test_01(id, exp_id, exppath_short, varargin)
 
   instances = bbParams.instances;
   maxfunevals = bbParams.maxfunevals;
+
+  % start parpool
+  disp('Starting MetaParPool');
+  workers = MetaParPool('open')
+  if workers < bbParams.parpoolSize
+    disp('Could not initialize enough parallel workers, exiting');
+    exit(1);
+  end
 
   try
 
@@ -160,6 +168,9 @@ function bbob_test_01(id, exp_id, exppath_short, varargin)
     exit(1);
     throw(err);
   end
+
+  % delete parpool if exists
+  MetaParPool('close');
 end
 
 function [exp_results, tmpFile, cmaes_out] = runTestsForAllInstances(opt_function, id, exp_settings, datapath, opt, maxrestarts, maxfunevals, minfunevals, t0, exppath, localDatapath)
@@ -179,7 +190,7 @@ function [exp_results, tmpFile, cmaes_out] = runTestsForAllInstances(opt_functio
   for iinstance = exp_settings.instances   % 15 function instances
     fmin = Inf;
 
-    fgeneric('initialize', exp_settings.bbob_function, iinstance, datapath, opt); 
+    fgeneric('initialize', exp_settings.bbob_function, iinstance, datapath, opt);
     yeRestarts = [];
 
     % independent restarts until maxfunevals or ftarget is reached
@@ -204,7 +215,7 @@ function [exp_results, tmpFile, cmaes_out] = runTestsForAllInstances(opt_functio
       if fgeneric('fbest') < fgeneric('ftarget') || ...
         fgeneric('evaluations') + minfunevals > maxfunevals
         break;
-      end  
+      end
     end
 
     y_evals = cat(1,y_evals,yeRestarts);

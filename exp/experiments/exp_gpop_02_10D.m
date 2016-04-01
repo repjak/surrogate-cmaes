@@ -1,5 +1,5 @@
-exp_id = 'exp_gpop_01_10D';
-exp_description = 'GPOP (Buche) with GP and CMA-ES, 24, functions, 15 instances';
+exp_id = 'exp_gpop_02_10D';
+exp_description = 'GPOP (Buche) with GP and CMA-ES, 4 functions, all instances, max 10 * dim funevals';
 
 % BBOB/COCO framework settings
 

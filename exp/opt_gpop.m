@@ -21,8 +21,7 @@ fDelta = 1e-8;
 % GPOP defaults
 gpopOptions = struct( ...
   'maxFunEvals', min(1e8*dim, maxfunevals), ...
-  'stopFitness', ftarget, ...
-  'parpoolSize', 4 ...
+  'stopFitness', ftarget ...
 );
 
 % CMA-ES defaults
@@ -62,11 +61,6 @@ for fname = fieldnames(sgParams)'
   end
 end
 
-% start parpool
-if gpopOptions.parpoolSize > 1 && exist('parpool', 'file')
-  pool = parpool(gpopOptions.parpoolSize);
-end
-
 for ilaunch = 1:1e4
   % Info about tested function is for debugging purposes
   bbob_handlesF = benchmarks('handles');
@@ -90,8 +84,4 @@ for ilaunch = 1:1e4
   % end
   xstart = x;
 end % for
-
-% delete parpool
-if exist('pool', 'var'), delete(pool); end
-
 end % function
