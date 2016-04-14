@@ -203,10 +203,6 @@ end % function
 
 function y = surrogateFcn(x, a, model)
   [mu, s2] = model.modelPredict(x');
-  if (model.options.normalizeY)
-    % un-normalize predicted deviation
-    s2 = s2 / model.stdY ^ 0.5;
-  end
   y = fmerit(mu, s2, a);
 end % function
 
