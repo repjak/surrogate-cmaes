@@ -21,8 +21,7 @@ fDelta = 1e-8;
 % GPOP defaults
 gpopOptions = struct( ...
   'maxFunEvals', min(1e8*dim, maxfunevals), ...
-  'stopFitness', ftarget, ...
-  'parpoolSize', 4 ...
+  'stopFitness', ftarget ...
 );
 
 % CMA-ES defaults
@@ -62,36 +61,17 @@ for fname = fieldnames(sgParams)'
   end
 end
 
-% start parpool
-if gpopOptions.parpoolSize > 1 && exist('parpool', 'file')
-  pool = parpool(gpopOptions.parpoolSize);
-end
+% Info about tested function is for debugging purposes
+bbob_handlesF = benchmarks('handles');
+sgParams.modelOpts.bbob_func = bbob_handlesF{bbParams.functions(1)};
+sgParams.expFileID = [num2str(bbParams.functions(1)) '_' num2str(dim) 'D_' num2str(id)];
 
-for ilaunch = 1:1e4
-  % Info about tested function is for debugging purposes
-  bbob_handlesF = benchmarks('handles');
-  sgParams.modelOpts.bbob_func = bbob_handlesF{bbParams.functions(1)};
-  sgParams.expFileID = [num2str(bbParams.functions(1)) '_' num2str(dim) 'D_' num2str(id)];
+ilaunch = 1; % no restarts
 
-  [x, fmin, counteval, stopflag, y_eval] = gpop(FUN, xstart, gpopOptions, cmOptions, sgParams.modelOpts);
+[x, fmin, counteval, stopflag, y_eval] = gpop(FUN, xstart, gpopOptions, cmOptions, sgParams.modelOpts);
 
-  n_y_evals = size(y_eval,1);
-  y_eval(:,1) = y_eval(:,1) - (ftarget - fDelta) * ones(n_y_evals,1);
-  y_evals = [y_evals; y_eval];
-
-  if (feval(FUN, 'fbest') < ftarget || ...
-      feval(FUN, 'evaluations') >= maxfunevals)
-    break;
-  end
-
-  % % terminate with some probability
-  % if rand(1,1) > 0.98/sqrt(ilaunch)
-  %   break;
-  % end
-  xstart = x;
-end % for
-
-% delete parpool
-if exist('pool', 'var'), delete(pool); end
+n_y_evals = size(y_eval,1);
+y_eval(:,1) = y_eval(:,1) - (ftarget - fDelta) * ones(n_y_evals,1);
+y_evals = [y_evals; y_eval];
 
 end % function
