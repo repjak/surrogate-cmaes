@@ -84,12 +84,12 @@ if isempty(stopflag)
   cmOptsInit.PopSize = 10;
   cmOptsInit.MaxFunEvals = ceil(opts.nc / 2);
 
-  [xCm1, fminCm1, countevalCm1, stopflagCm1, outCm1, besteverCm1, ~] = s_cmaes(fitfun, xstart, 8/3, cmOptsInit);
+  [xCm1, fminCm1, countevalCm1, stopflagCm1, outCm1, besteverCm1, y_evalCm1] = s_cmaes(fitfun, xstart, 8/3, cmOptsInit);
 
   xbest = besteverCm1.x;
   fmin = besteverCm1.f;
   counteval = counteval + countevalCm1;
-  y_eval = [y_eval; fmin counteval surrogateStats];
+  y_eval = [y_eval; y_evalCm1];
   archive = archive.save(outCm1.arxvalids', outCm1.fvalues', countiter);
   stopflag = stop_criteria();
   log_state();
