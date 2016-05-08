@@ -196,8 +196,13 @@ end % while
   function log_state()
     varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
       'iterPrtb', 'stopflag' };
+    if isempty(stopflag)
+      flag = { [] };
+    else
+      flag = stopflag;
+    end
     t = table([countiter], [fmin], { mat2str(xbest', 2) }, [counteval], ...
-      [max(fhist) - min(fhist)], iterPrtb, stopflag, ...
+      [max(fhist) - min(fhist)], iterPrtb, flag, ...
       'VariableNames', varnames);
     disp(t);
   end % function
