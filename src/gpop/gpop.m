@@ -115,7 +115,7 @@ while isempty(stopflag)
     d = max(closestX)' - min(closestX)';
     cmOpts.LBounds = xbest - d/2;
     cmOpts.UBounds = xbest + d/2;
-    sigma = max(min(d/2 - 1e-8, 8/3), 1e-8);
+    sigma = [];
 
     % optimize all variants of model prediction with parallel workers
     parfor i = 1:length(opts.meritParams)
@@ -160,7 +160,9 @@ while isempty(stopflag)
 
   y_eval = [y_eval; fmin counteval surrogateStats];
 
-  if mod(countiter-1, opts.logModulo) == 0, log_state(); end
+  if ~isempty(stopflag) || (mod(countiter-1, opts.logModulo) == 0)
+    log_state();
+  end
   % catch err
   %   disp(err.message);
   % end % catch
@@ -194,8 +196,8 @@ end % while
   function log_state()
     varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
       'iterPrtb', 'stopflag' };
-    t = table([countiter], [fmin], { xbest' }, [counteval], ...
-      { max(fhist) - min(fhist) }, iterPrtb, { stopflag }, ...
+    t = table([countiter], [fmin], { mat2str(xbest', 2) }, [counteval], ...
+      [max(fhist) - min(fhist)], iterPrtb, stopflag, ...
       'VariableNames', varnames);
     disp(t);
   end % function
