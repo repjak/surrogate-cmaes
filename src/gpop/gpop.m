@@ -144,7 +144,7 @@ while isempty(stopflag)
     % no solution found or model not trained
     % add a Gaussian perturbation of xbest to the training data
     d = max(closestX)' - min(closestX)';
-    x = xbest + randn(size(xbest)) * d * opts.prtb;
+    x = xbest + opts.prtb * (randn(size(xbest)) .* d);
     y = eval_fitness(x);
     fhist(2:end) = fhist(1:end-1);
     fhist(1) = y;
