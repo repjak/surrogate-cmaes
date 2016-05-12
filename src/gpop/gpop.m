@@ -75,7 +75,7 @@ stopflag = stop_criteria();
 if isempty(stopflag)
   countiter = countiter + 1;
 
-  model = GpModel(modelOpts, ones(1, dim));
+  model = GpopGpModel(modelOpts, ones(1, dim));
   archive = GpopArchive(dim);
 
   % initial search for nc / 2 points with (2,10)-CMA-ES
@@ -144,7 +144,7 @@ while isempty(stopflag)
     % no solution found or model not trained
     % add a Gaussian perturbation of xbest to the training data
     d = max(closestX)' - min(closestX)';
-    x = xbest + randn() * d * opts.prtb;
+    x = xbest + randn(size(xbest)) * d * opts.prtb;
     y = eval_fitness(x);
     fhist(2:end) = fhist(1:end-1);
     fhist(1) = y;
