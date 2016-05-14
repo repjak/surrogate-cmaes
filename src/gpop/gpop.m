@@ -104,8 +104,9 @@ while isempty(stopflag)
   % select training data
   [closestX, closestY] = archive.getNearData(opts.nc, xbest');
   [recentX, recentY] = archive.getRecentData(opts.nr);
-  trainingX = union(closestX, recentX, 'rows');
-  trainingY = union(closestY, recentY);
+  trainingData = union([closestX closestY], [recentX recentY], 'rows');
+  trainingX = trainingData(:, 1:end-1);
+  trainingY = trainingData(:, end);
 
   % train model
   model = model.trainModel(trainingX, trainingY, xbest', countiter);
@@ -113,8 +114,8 @@ while isempty(stopflag)
   if model.isTrained()
     % restrict CMA-ES search area to xbest's neighbourhood
     d = max(closestX)' - min(closestX)';
-    cmOpts.LBounds = xbest - d/2;
-    cmOpts.UBounds = xbest + d/2;
+    cmOpts.LBounds = max(xbest - d/2, -5);
+    cmOpts.UBounds = min(xbest + d/2, 5);
     sigma = [];
 
     % optimize all variants of model prediction with parallel workers
@@ -136,6 +137,8 @@ while isempty(stopflag)
           log_state();
           return;
         end % if
+      else
+        disp(['Solution ' num2str(x') ' already in archive within tolerance ' num2str(opts.tolXPrtb)]);
       end % if
     end % for
   end % if
@@ -146,13 +149,14 @@ while isempty(stopflag)
     d = max(closestX)' - min(closestX)';
     x = xbest + opts.prtb * (randn(size(xbest)) .* d);
     y = eval_fitness(x);
+    disp(['Adding perturbation ' num2str(x') ' (f-value=' num2str(y) ') to archive']);
     fhist(2:end) = fhist(1:end-1);
     fhist(1) = y;
     iterPrtb = iterPrtb + 1;
   else
     % save only the best solution in current iteration to the history
     fhist(2:end) = fhist(1:end-1);
-    fhist(1) = min(sol(2,:));
+    fhist(1) = min(sol(end,:));
     iterPrtb = 0;
   end
 
