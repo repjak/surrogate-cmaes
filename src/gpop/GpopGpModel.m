@@ -55,8 +55,8 @@ classdef GpopGpModel < GpModel
       assert(l_cov == 8, 'GPOP assumes exactly 8 hyperparameters');
 
       % lower and upper bounds
-      lb_hyp.cov = [1e-2 * ones(l_cov-3, 1); 1e-3; 1e-3; 1e-9];
-      ub_hyp.cov = [10 * ones(l_cov-3, 1); 1; 1; 1e-2];
+      lb_hyp.cov = log([1e-2 * ones(l_cov-3, 1); 1e-3; 1e-3; 1e-9]);
+      ub_hyp.cov = log([10 * ones(l_cov-3, 1); 1; 1; 1e-2]);
       lb_hyp.lik = log(1e-6);
       ub_hyp.lik = log(10);
       % set bounds for mean hyperparameter
@@ -76,7 +76,9 @@ classdef GpopGpModel < GpModel
       if (obj.nFminconIt >= 0 && obj.nFminconIt < obj.maxFminconIt)
         [obj, opt, trainErr] = obj.trainFmincon(linear_hyp, obj.dataset.X, yTrain, lb, ub, f);
 
-        if (~trainErr)
+        if (trainErr)
+          disp('Fmincon train error');
+        else
           obj.nFminconIt = obj.nFminconIt + 1;
         end
       end
@@ -180,7 +182,7 @@ classdef GpopGpModel < GpModel
       cmaesopt.LogModulo = 0;
       cmaesopt.DispModulo = 0;
       cmaesopt.DispFinal = 0;
-      sigma = [0.2*(ub - lb)]';
+      sigma = [0.2*(ub - lb)]' + eps;
       % sigma(end) = min(10*mean(sigma(1:end-1)), sigma(end));
       if (length(obj.hyp.cov) > 2)
         % there is ARD covariance
@@ -202,7 +204,7 @@ classdef GpopGpModel < GpModel
         lb(1:obj.dim) = cov_median - MAX_DIFF;
         cmaesopt.LBounds = lb';
         cmaesopt.UBounds = ub';
-        sigma(1:obj.dim) = [0.2*(ub(1:obj.dim) - lb(1:obj.dim))]';
+        sigma(1:obj.dim) = [0.2*(ub(1:obj.dim) - lb(1:obj.dim))]' + eps;
       end
       cmaesopt.MaxFunEvals = 3000;
       try
@@ -224,7 +226,6 @@ classdef GpopGpModel < GpModel
       obj.trainLikelihood = fval;
     end
   end % methods
-
 end
 
 function [nlZ, dnlZ] = linear_gp(linear_hyp, s_hyp, inf, mean, cov, lik, x, y)
