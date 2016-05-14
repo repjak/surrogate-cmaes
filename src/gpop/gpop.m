@@ -61,7 +61,7 @@ counteval = 0;
 stopflag = {};
 iterPrtb = 0;
 y_eval = [];
-surrogateStats = NaN(1, 2);
+surrogateStats = NaN(1, 2); % model's rmse, Kendall corr.
 
 % eval string parameters
 if ischar(modelOpts.hyp.cov), modelOpts.hyp.cov = eval(modelOpts.hyp.cov); end
@@ -100,6 +100,7 @@ while isempty(stopflag)
   % try
   countiter = countiter + 1;
   sol = []; % array with solutions found for model's current state
+  surrogateStats = NaN(1, 2);
 
   % select training data
   [closestX, closestY] = archive.getNearData(opts.nc, xbest');
@@ -119,20 +120,27 @@ while isempty(stopflag)
     sigma = [];
 
     % optimize all variants of model prediction with parallel workers
-    parfor i = 1:length(opts.meritParams)
+    meritParams = opts.meritParams;
+    parfor i = 1:length(meritParams)
       % minimize surrogate function
-      fun = @(x) surrogateFcn(x, opts.meritParams(i), model);
+      fun = @(x) surrogateFcn(x, meritParams(i), model);
       [xCm, fminCm, ~, stopflagCm, ~, besteverCm, ~] = s_cmaes(fun, xbest, sigma, cmOpts);
-      res(:, i) = besteverCm.x;
+      res(:, i) = [besteverCm.x; besteverCm.f];
     end % parfor
 
     % evaluate model optima and save new solutions to archive
-    for x = res
+    for r = res
+      x = r(1:end-1,:);
+      yPred = r(end,:);
       if (~archive.isMember(x', opts.tolXPrtb))
         y = eval_fitness(x);
-        sol = [sol [x; y]];
+        sol = [sol [x; yPred; y]];
         stopflag = stop_criteria();
         if ~isempty(stopflag)
+          if ~isempty(sol)
+            [rmse, kendall] = modelStats(sol(end-1,:), sol(end,:));
+            surrogateStats = [rmse, kendall];
+          end
           y_eval = [y_eval; fmin counteval surrogateStats];
           log_state();
           return;
@@ -158,6 +166,8 @@ while isempty(stopflag)
     fhist(2:end) = fhist(1:end-1);
     fhist(1) = min(sol(end,:));
     iterPrtb = 0;
+    [rmse, kendall] = modelStats(sol(end-1,:), sol(end,:));
+    surrogateStats = [rmse, kendall];
   end
 
   stopflag = stop_criteria();
@@ -199,14 +209,15 @@ end % while
 
   function log_state()
     varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
-      'iterPrtb', 'stopflag' };
+      'iterPrtb', 'rmse', 'kendall', 'stopflag' };
     if isempty(stopflag)
       flag = { [] };
     else
       flag = stopflag;
     end
-    t = table([countiter], [fmin], { mat2str(xbest', 2) }, [counteval], ...
-      [max(fhist) - min(fhist)], iterPrtb, flag, ...
+    t = table(countiter, fmin, { mat2str(xbest', 2) }, counteval, ...
+      max(fhist) - min(fhist), iterPrtb, ...
+      surrogateStats(1), surrogateStats(2), flag, ...
       'VariableNames', varnames);
     disp(t);
   end % function
@@ -226,3 +237,12 @@ function y = fmerit(mu, s2, a)
   % @a        -- scale parameter
   y = mu - a * sqrt(s2);
 end % function
+
+
+function [rmse, kendall] = modelStats(yPred, yNew)
+  % compute model's rmse and kendall correlation on data from one iteration
+  % @yPred    -- row vector of predicted values
+  % @yNew     -- row vector of real values
+  rmse = sqrt(sum((yPred - yNew).^2))/length(yNew);
+  kendall = corr(yPred', yNew', 'type', 'Kendall');
+end
