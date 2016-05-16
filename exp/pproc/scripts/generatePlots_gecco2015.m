@@ -25,10 +25,11 @@ funcSet.BBfunc = [1, 2, 3, 5, 6, 8, 10, 11, 12, 13, 14, 20, 21];
 funcSet.dims = [2, 5, 10];
 
 % loading data
-[trans_evals, trans_settings] = dataReady(transPath10D, funcSet, 4);
-[rf_evals, rf_settings] = dataReady(rfpath, funcSet, 1, 'rflite');
-[gp_evals, gp_settings] = dataReady(gppath, funcSet, 6);
-cmaes_evals = dataReady(cmaespath, funcSet, 1, 'cmaes');
+[trans_evals, trans_settings] = dataReady(transPath10D, funcSet);
+[rf_evals, rf_settings] = dataReady(rfpath, funcSet);
+%%
+[gp_evals, gp_settings] = dataReady(gppath, funcSet);
+cmaes_evals = dataReady(cmaespath, funcSet);
 
 % finding data indexes
 set.modelType = 'rf';
@@ -61,7 +62,7 @@ RF1Col = [116 172 66];
 %   data = {trans_evals(:,:,rf1TransId),trans_evals(:,:,gp1TransId),trans_evals(:,:,rf5TransId),trans_evals(:,:,gp5TransId),cmaes_evals};
 %   datanames = {'RF1T','GP1T','RF5T','GP5T','CMA-ES'};
 
-data = {cmaes_evals,gp_evals(:,:,gp3Id),trans_evals(:,:,gp5TransId),rf_evals(:,:,rf1Id),trans_evals(:,:,rf1TransId),trans_evals(:,:,gp5TransId)};
+data = {cmaes_evals,gp_evals(:,:,gp3Id),trans_evals(:,:,gp5TransId),rf_evals(:,:,rf1Id),trans_evals(:,:,rf1TransId)};
 datanames = {'CMA-ES','GP3','GP5-trans','RF1','RF1-trans'};
 
 %   data = {cmaes_evals,gp_evals(:,:,gp3Id),trans_evals(:,:,gp5TransId),rf_evals(:,:,rf1Id),trans_evals(:,:,rf1TransId)};
@@ -73,7 +74,9 @@ for i = 1:length(funcSet.BBfunc)
   pdfNames{i} = fullfile(plotResultsFolder, ['f', num2str(funcSet.BBfunc(i))]);
 end
 
-han = fValuesPlot(data,datanames,funcSet,funcSet.dims,funcSet.BBfunc,colors);
+han = fValuesPlot(data, 'DataNames', datanames, 'DataDims', funcSet.dims, ...
+                        'DataFuns', funcSet.BBfunc, 'Colors', colors, ...
+                        'AverageDims', true);
 %   print2pdf(han,pdfNames,1)
 
 %   drawGraph(gp_evals,cmaes_evals,'cmaes',funcSet);
