@@ -114,7 +114,7 @@ while isempty(stopflag)
 
   if model.isTrained()
     % restrict CMA-ES search area to xbest's neighbourhood
-    d = max(closestX)' - min(closestX)';
+	d = max(max(closestX)' - min(closestX)', 2e-8 * ones(dim, 1));
     cmOpts.LBounds = max(xbest - d/2, -5);
     cmOpts.UBounds = min(xbest + d/2, 5);
     sigma = [];
