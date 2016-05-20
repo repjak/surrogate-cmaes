@@ -4,6 +4,8 @@ classdef GpopGpModel < GpModel
   properties
     nFminconIt;
     maxFminconIt;
+    shiftX;
+    stdX;
   end
 
   methods (Access = public)
@@ -41,6 +43,11 @@ classdef GpopGpModel < GpModel
         yTrain = y;
       end
 
+      % normalize X
+      obj.shiftX = mean(X);
+      obj.stdX = std(X);
+      xTrain = (X - repmat(obj.shiftX, size(X, 1), 1)) ./ repmat(obj.stdX, size(X, 1), 1);
+
       % set the mean hyperparameter if is needed
       if (~isequal(obj.meanFcn, @meanZero))
         obj.hyp.mean = median(yTrain);
@@ -74,7 +81,7 @@ classdef GpopGpModel < GpModel
       trainErr = false;
 
       if (obj.nFminconIt >= 0 && obj.nFminconIt < obj.maxFminconIt)
-        [obj, opt, trainErr] = obj.trainFmincon(linear_hyp, obj.dataset.X, yTrain, lb, ub, f);
+        [obj, opt, trainErr] = obj.trainFmincon(linear_hyp, xTrain, yTrain, lb, ub, f);
 
         if (trainErr)
           disp('Fmincon train error');
@@ -87,7 +94,7 @@ classdef GpopGpModel < GpModel
         if (trainErr)
           disp('Trying CMA-ES...');
         end
-        [obj, opt, trainErr] = obj.trainCmaes(linear_hyp, obj.dataset.X, yTrain, lb, ub, f);
+        [obj, opt, trainErr] = obj.trainCmaes(linear_hyp, xTrain, yTrain, lb, ub, f);
         if (trainErr)
           % DEBUG OUTPUT:
           fprintf('.. model is not successfully trained, likelihood = %f\n', obj.trainLikelihood);
@@ -103,6 +110,31 @@ classdef GpopGpModel < GpModel
       % DEBUG OUTPUT:
       fprintf('.. model-training likelihood = %f\n', obj.trainLikelihood);
       % disp(obj.hyp);
+    end
+
+    function [y, dev] = modelPredict(obj, X)
+      % predicts the function values in new points X
+      if (obj.isTrained())
+        % prepare the training set (if was normalized for training)
+        nRows = size(obj.dataset.X, 1);
+        xTrain = (obj.dataset.X - repmat(obj.shiftX, nRows, 1)) ./ repmat(obj.stdX, nRows, 1);
+        yTrain = (obj.dataset.y - obj.shiftY) / obj.stdY;
+
+        XNormalized = (X - repmat(obj.shiftX, size(X, 1), 1)) ./ repmat(obj.stdX, size(X, 1), 1);
+
+        % apply the shift if the model is already shifted
+        % TODO: do this before or after normalization in X?
+        XWithShift = XNormalized - repmat(obj.shiftMean, size(XNormalized,1), 1);
+
+        % calculate GP models' prediction in X
+        [y, dev] = gp(obj.hyp, obj.infFcn, obj.meanFcn, obj.covFcn, obj.likFcn, xTrain, yTrain, XWithShift);
+        % un-normalize in the f-space (if there is any)
+        y = y * obj.stdY + obj.shiftY;
+        dev = dev * obj.stdY;
+      else
+        y = []; dev = [];
+        fprintf(2, 'GpModel.predict(): the model is not yet trained!\n');
+      end
     end
   end
 
