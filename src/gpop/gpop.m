@@ -110,7 +110,6 @@ while isempty(stopflag)
 
   % compute diameter of search hypercube
   d = max(max(closestX)' - min(closestX)', 2e-8 * ones(dim, 1));
-  d(1) = max(d(2:end)) / 1e12;
 
   % prevent bad conditioning of sigma
   badCondIdx = max(d) ./ d >= 1e6;
