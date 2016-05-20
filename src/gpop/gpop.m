@@ -46,7 +46,7 @@ opts = struct(...
   'stopFitness', -Inf, ...
   'tolFunHist', 1e-9, ...
   'funHistLen', 2, ...
-  'logModulo', 100 ...
+  'logModulo', 1 ...
 );
 
 for fname = fieldnames(gpopOpts)'
@@ -60,12 +60,11 @@ countiter = 0;
 counteval = 0;
 stopflag = {};
 iterPrtb = 0;
+d = NaN(dim, 1);
 y_eval = [];
 surrogateStats = NaN(1, 2); % model's rmse, Kendall corr.
 
 % eval string parameters
-if ischar(modelOpts.hyp.cov), modelOpts.hyp.cov = eval(modelOpts.hyp.cov); end
-
 for fname = fieldnames(opts)'
   if ischar(opts.(fname{1})), opts.(fname{1}) = eval(opts.(fname{1})); end
 end
@@ -75,7 +74,7 @@ stopflag = stop_criteria();
 if isempty(stopflag)
   countiter = countiter + 1;
 
-  model = GpopGpModel(modelOpts, ones(1, dim));
+  model = GprModel(modelOpts, ones(1, dim));
   archive = GpopArchive(dim);
 
   % initial search for nc / 2 points with (2,10)-CMA-ES
@@ -109,12 +108,19 @@ while isempty(stopflag)
   trainingX = trainingData(:, 1:end-1);
   trainingY = trainingData(:, end);
 
+  % compute diameter of search hypercube
+  d = max(max(closestX)' - min(closestX)', 2e-8 * ones(dim, 1));
+  d(1) = max(d(2:end)) / 1e12;
+
+  % prevent bad conditioning of sigma
+  badCondIdx = max(d) ./ d >= 1e6;
+  d(badCondIdx) = max(d) / 1e5;
+
   % train model
   model = model.trainModel(trainingX, trainingY, xbest', countiter);
 
   if model.isTrained()
     % restrict CMA-ES search area to xbest's neighbourhood
-	d = max(max(closestX)' - min(closestX)', 2e-8 * ones(dim, 1));
     cmOpts.LBounds = max(xbest - d/2, -5);
     cmOpts.UBounds = min(xbest + d/2, 5);
     sigma = [];
@@ -208,14 +214,14 @@ end % while
   end % function
 
   function log_state()
-    varnames = { 'countiter', 'fmin', 'xbest', 'counteval', 'fchange', ...
+    varnames = { 'countiter', 'fmin', 'xbest', 'd', 'counteval', 'fchange', ...
       'iterPrtb', 'rmse', 'kendall', 'stopflag' };
     if isempty(stopflag)
       flag = { [] };
     else
       flag = stopflag;
     end
-    t = table(countiter, fmin, { mat2str(xbest', 2) }, counteval, ...
+    t = table(countiter, fmin - fgeneric('ftarget'), { mat2str(xbest', 2) }, { mat2str(d', 2) }, counteval, ...
       max(fhist) - min(fhist), iterPrtb, ...
       surrogateStats(1), surrogateStats(2), flag, ...
       'VariableNames', varnames);
