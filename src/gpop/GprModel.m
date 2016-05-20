@@ -13,19 +13,20 @@ classdef GprModel < Model
     predictionType        % type of prediction (f-values, PoI, EI)
     transformCoordinates  % transform X-space
     stateVariables        % variables needed for sampling new points as CMA-ES do
-    
+
     % GprModel specific properties
     stdY                  % standard deviation of Y in training set, for output normalization
-    covFcn                % covariance function passed to fitrgp
+    cov                   % a struct with cov fcn, hyperparameters vector and noise std
     options
     hyp
     nErrors
     gprMdl                % a RegressionGP object
+    logModel              % display model object after each training
   end
 
   properties (Access = protected)
-    % a list of strings identifiers of covariance functions supported by
-    % fitrgp
+    % a list of known strings identifiers of covariance functions accepted
+    % by fitrgp
     covFcnType = {'squaredexponential', 'matern32', 'matern52', 'ardsquaredexponential', ...
       'ardmatern32', 'ardmatern52'}
   end
@@ -51,38 +52,26 @@ classdef GprModel < Model
         warning('GprModel: Statistics and Machine Learning Toolbox license not available. Model cannot be used');
       end
 
-      % Optimization Toolbox check
-      obj.options.trainAlgorithm = defopts(obj.options, 'trainAlgorithm', 'fmincon');
-      if (strcmpi(obj.options.trainAlgorithm, 'fmincon') ...
-          && ~license('checkout', 'optimization_toolbox'))
-        warning('GpModel: Optimization Toolbox license not available. Switching to minimize().');
-        obj.options.trainAlgorithm = 'fminsearch';
-      end
-
-      covFcn = defopts(obj.options, 'covFcn',  '{@covMaterniso, 5}');
-      if (any(ismember(covFcn, obj.covFcnType)))
-        % a string
-        obj.covFcn = covFcn;
-      else
+      obj.cov = defopts(obj.options, 'cov',  struct('fcn', 'ardsquaredexponential'));
+      if (~any(ismember(obj.cov.fcn, obj.covFcnType)))
         % a function handle
-        obj.covFcn = eval(covFcn);
+        if (~isfield(obj.cov, 'hyp'))
+          error('Hyperparameters must be specified for custom covariance functions');
+        end
+        obj.cov.fcn = myeval(obj.cov.fcn);
       end
-
-      dim = obj.dim;
 
       obj.options.normalizeY = defopts(obj.options, 'normalizeY', true);
       obj.options.normalizeX = defopts(obj.options, 'normalizeX', true);
       obj.transformCoordinates = defopts(modelOptions, 'transformCoordinates', true);
-      obj.hyp.sigma = defopts(obj.options.hyp, 'sigma', 'std(y)/sqrt(2)');
-      obj.hyp.cov = defopts(obj.options.hyp, 'cov', '[std(X), std(y)/sqrt(2)]''');
-      disp(obj.hyp.cov);
       obj.gprMdl = [];
+      obj.logModel = 0;
     end
 
     function nData = getNTrainData(obj)
       nData = 3 * obj.dim;
     end
-    
+
     function trained = isTrained(obj)
       trained = (strcmpi(class(obj.gprMdl), 'RegressionGP'));
     end
@@ -101,43 +90,54 @@ classdef GprModel < Model
         obj.stdY = 1;
       end
 
-      alg = obj.options.trainAlgorithm;
-      hyp = myeval(obj.hyp.cov);
-      sigma = myeval(obj.hyp.sigma);
+      % used in some myevaled strings
+      dim = obj.dim;
 
-%       if (strcmpi(alg, 'fmincon') && (~isfield(obj.options, 'lb_hyp') ...
-%           || ~isfield(obj.options, 'ub_hp')))
-%         warning('Traning algorithm ''fmincon'' specified but no constraints given. Falling back to MATLAB''s default');
-%         alg = 'default';
-%       end
+      if (isfield(obj.cov, 'hyp') && isfield(obj.cov, 'sigma'))
+        % both sigma and hyperparameter specified
+        hyp = myeval(obj.cov.hyp);
+        sigma = myeval(obj.cov.sigma);
 
-      if (strcmpi(alg, 'fminsearch'))
         obj.gprMdl = fitrgp(obj.dataset.X, y, ...
           'FitMethod', 'exact', ...
           'Sigma', sigma, ...
-          'KernelFunction', obj.covFcn, ...
+          'KernelFunction', obj.cov.fcn, ...
           'KernelParameters', hyp, ...
-          'Optimizer', obj.options.trainAlgorithm, ...
           'Standardize', obj.options.normalizeX ...
         );
-      elseif (strcmpi(alg, 'fmincon'))
-        % TODO: find a way to pass lb, ub
+      elseif (isfield(obj.cov, 'hyp'))
+        % compute default sigma inside fitrgp
+        hyp = myeval(obj.cov.hyp);
+
         obj.gprMdl = fitrgp(obj.dataset.X, y, ...
           'FitMethod', 'exact', ...
-          'PredictMethod', 'exact', ...
-          'Sigma', sigma, ...
-          'KernelFunction', obj.covFcn, ...
+          'KernelFunction', obj.cov.fcn, ...
           'KernelParameters', hyp, ...
-          'Optimizer', obj.options.trainAlgorithm, ...
+          'Standardize', obj.options.normalizeX ...
+        );
+      elseif (isfield(obj.cov, 'sigma'))
+        % compute default hyperparameters inside fitrgp
+        sigma = myeval(obj.cov.sigma);
+
+        obj.gprMdl = fitrgp(obj.dataset.X, y, ...
+          'FitMethod', 'exact', ...
+          'Sigma', sigma, ...
+          'KernelFunction', obj.cov.fcn, ...
           'Standardize', obj.options.normalizeX ...
         );
       else
-        error(['Training algorithm ''' alg ''' not supported']);
+        % default sigma and default hyperparameters
+        obj.gprMdl = fitrgp(obj.dataset.X, y, ...
+          'FitMethod', 'exact', ...
+          'KernelFunction', obj.cov.fcn, ...
+          'Standardize', obj.options.normalizeX ...
+        );
       end
 
-      disp('Model:');
-      disp(obj.gprMdl);
-
+      if (obj.logModel)
+        disp('Model:');
+        disp(obj.gprMdl);
+      end
     end
 
     function [ypred, ysd] = modelPredict(obj, X)
@@ -154,7 +154,7 @@ classdef GprModel < Model
         warning('Model not trained');
       end
     end
-    
+
     function gprMdl = getGpr(obj)
       % get gprMdl object
       gprMdl = obj.gprMdl;
