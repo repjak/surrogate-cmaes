@@ -115,13 +115,14 @@ while isempty(stopflag)
   badCondIdx = max(d) ./ d >= 1e6;
   d(badCondIdx) = max(d) / 1e5;
 
-  % train model
+  % train the model
   model = model.trainModel(trainingX, trainingY, xbest', countiter);
 
   if model.isTrained()
     % restrict CMA-ES search area to xbest's neighbourhood
-    cmOpts.LBounds = max(xbest - d/2, -5);
-    cmOpts.UBounds = min(xbest + d/2, 5);
+    [lb, ub] = searchBounds(xbest, d, -5 * ones(size(xbest)), 5 * ones(size(xbest)));
+    cmOpts.LBounds = lb;
+    cmOpts.UBounds = ub;
     sigma = [];
 
     % optimize all variants of model prediction with parallel workers
@@ -213,15 +214,15 @@ end % while
   end % function
 
   function log_state()
-    varnames = { 'countiter', 'fmin', 'xbest', 'd', 'counteval', 'fchange', ...
+    varnames = { 'countiter', 'fmin', 'xbest', 'd', 'lb', 'ub', 'counteval', 'fchange', ...
       'iterPrtb', 'rmse', 'kendall', 'stopflag' };
     if isempty(stopflag)
       flag = { [] };
     else
       flag = stopflag;
     end
-    t = table(countiter, fmin - fgeneric('ftarget'), { mat2str(xbest', 2) }, { mat2str(d', 2) }, counteval, ...
-      max(fhist) - min(fhist), iterPrtb, ...
+    t = table(countiter, fmin - fgeneric('ftarget'), { mat2str(xbest', 2) }, { mat2str(d', 2) }, ...
+      { mat2str(cmOpts.LBounds', 2) }, { mat2str(cmOpts.UBounds', 2) }, counteval, max(fhist) - min(fhist), iterPrtb, ...
       surrogateStats(1), surrogateStats(2), flag, ...
       'VariableNames', varnames);
     disp(t);
@@ -250,4 +251,21 @@ function [rmse, kendall] = modelStats(yPred, yNew)
   % @yNew     -- row vector of real values
   rmse = sqrt(sum((yPred - yNew).^2))/length(yNew);
   kendall = corr(yPred', yNew', 'type', 'Kendall');
+end
+
+
+function [lb, ub] = searchBounds(x, d, domLb, domUb)
+  r = max(x + d/2 - domUb, 0);
+  l = max(domLb - (x - d/2), 0);
+
+  if (r > 0)
+    disp(['Correcting lbounds with ' mat2str(r)]);
+  end
+
+  if (l > 0)
+    disp(['Correcting ubounds with ' mat2str(l)]);
+  end
+
+  lb = max(x - d/2 - r, domLb);
+  ub = min(x + d/2 + l, domUb);
 end
