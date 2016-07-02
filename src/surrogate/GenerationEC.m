@@ -9,6 +9,7 @@ classdef GenerationEC < EvolutionControl
     currentGeneration   = 1;
     lastOriginalGenerations = [];
     remaining           = 2;
+    generationsUpdater;
   end
 
   methods
@@ -29,6 +30,7 @@ classdef GenerationEC < EvolutionControl
       obj.currentGeneration   = 1;
       obj.lastModel = [];
       obj.model = [];
+      obj.generationsUpdater = GenerationsUpdaterFactory.createUpdater(surrogateOpts);
     end
     
     function [fitness_raw, arx, arxvalid, arz, counteval, lambda, archive, surrogateStats] = runGeneration(obj, cmaesState, surrogateOpts, sampleOpts, archive, counteval, varargin)
@@ -40,6 +42,7 @@ classdef GenerationEC < EvolutionControl
       xmean = cmaesState.xmean;
       sigma = cmaesState.sigma;
       lambda = cmaesState.lambda;
+      dim = cmaesState.dim;
       BD = cmaesState.BD;
       fitfun_handle = cmaesState.fitfun_handle;
       countiter = cmaesState.countiter;
@@ -64,6 +67,9 @@ classdef GenerationEC < EvolutionControl
           if (isTrained)
             % TODO: archive the obj.lastModel...?
             obj.lastModel = obj.model;
+
+            [predictY, ~] = obj.model.predict(arxvalid');
+            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(predictY, fitness_raw', dim, lambda, obj.currentGeneration);
           else
             % not enough training data :( -- continue with another
             % 'original'-evaluated generation
@@ -138,7 +144,6 @@ classdef GenerationEC < EvolutionControl
           % DEBUG:
           fprintf('  test ');
           surrogateStats = getModelStatistics(shiftedModel, cmaesState, surrogateOpts, sampleOpts, counteval);
-
         else
           % we don't have a good model, so original fitness will be used
           [fitness_raw_, arx_, arxvalid_, arz_, counteval] = ...
@@ -155,6 +160,11 @@ classdef GenerationEC < EvolutionControl
           if (isTrained)
             % TODO: archive the obj.lastModel...?
             obj.lastModel = obj.model;
+
+            % adapt generation counts
+            [predictY, ~] = obj.model.predict(arxvalid_');
+            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(predictY, fitness_raw_', dim, lambda, obj.currentGeneration);
+
             % leave the next generation as a model-evaluated:
             obj = obj.holdOn();
           else
