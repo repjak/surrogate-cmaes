@@ -1,13 +1,16 @@
 classdef GenerationsUpdaterRMSE < GenerationsUpdater
   properties
+    parsedParams
     minModelGenerations
     maxModelGenerations
     updateRate
     rmse
+    kendall
     generations
     lastModelGenerations
     origGenerations
     steepness
+    alpha
   end
 
   methods (Static)
@@ -21,37 +24,42 @@ classdef GenerationsUpdaterRMSE < GenerationsUpdater
   end
 
   methods
-    function [origGenerations, modelGenerations] = update(obj, modelY, origY, ~, ~, countiter)
+    function [newOrigGenerations, newModelGenerations] = update(obj, modelY, origY, ~, ~, countiter)
       obj.generations(end+1) = countiter;
 
       if isempty(modelY)
         obj.rmse(end+1) = NaN;
       else      
-        err = sqrt(sum((modelY - origY).^2))/length(origY);
-        obj.rmse(end+1) = err;
+        lastRMSE = sqrt(sum((modelY - origY).^2))/length(origY);
+        lastKendall = corr(modelY, origY, 'type', 'Kendall');
 
-        obj.lastModelGenerations = obj.minModelGenerations + GenerationsUpdaterRMSE.simplesig(1 - err / max(obj.rmse), obj.steepness) * (obj.maxModelGenerations - obj.minModelGenerations);
+        obj.rmse(end+1) = lastRMSE;
+        obj.kendall(end+1) = lastKendall;
+
+        err = (1 - obj.alpha) * (lastRMSE / max(obj.rmse)) + obj.alpha * (1 - lastKendall) / 2;
+
+        obj.lastModelGenerations = obj.minModelGenerations + GenerationsUpdaterRMSE.simplesig(1 - log10(1+9*err), obj.steepness) * (obj.maxModelGenerations - obj.minModelGenerations);
 
         disp(['GenerationsUpdaterRMSE: model generations: ', num2str(round(obj.lastModelGenerations)), ' [ ', repmat('+', 1, round(obj.lastModelGenerations)), repmat(' ', 1, obj.maxModelGenerations - round(obj.lastModelGenerations)), ' ]']);
       end
 
-      origGenerations = round(obj.origGenerations);
-      modelGenerations = round(obj.lastModelGenerations);
+      newOrigGenerations = round(obj.origGenerations);
+      newModelGenerations = round(obj.lastModelGenerations);
     end
 
     function obj = GenerationsUpdaterRMSE(parameters)
       % constructor
       obj = obj@GenerationsUpdater(parameters);
-      if isstruct(parameters)
-        parsedParams = parameters;
+      if ~isstruct(parameters)
+        obj.parsedParams = struct(parameters{:});
       else
-        parsedParams = struct(parameters{:});
+        obj.parsedParams = parameters;
       end
-
-      obj.minModelGenerations = defopts(parsedParams, 'minModelGenerations', 1);
-      obj.maxModelGenerations = defopts(parsedParams, 'maxModelGenerations', 5);
-      obj.updateRate = defopts(parsedParams, 'updateRate', 0.5);
-      obj.steepness = defopts(parsedParams,'steepness', 5);
+      obj.minModelGenerations = defopts(obj.parsedParams, 'minModelGenerations', 1);
+      obj.maxModelGenerations = defopts(obj.parsedParams, 'maxModelGenerations', 5);
+      obj.updateRate = defopts(obj.parsedParams, 'updateRate', 0.5);
+      obj.steepness = defopts(obj.parsedParams, 'steepness', 5);
+      obj.alpha = defopts(obj.parsedParams, 'alpha', 0.2);
       obj.rmse = [];
       obj.origGenerations = 1;
       obj.lastModelGenerations = obj.minModelGenerations;

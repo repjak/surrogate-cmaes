@@ -1,10 +1,11 @@
 classdef (Abstract) GenerationsUpdater < handle
   properties (Abstract)
+    parsedParams
   end
   
   methods (Abstract)
     % get new values
-    [origGenerations, modelGenerations] = update(obj, modelY, origY, dim, lambda, countiter);
+    [newOrigGenerations, newModelGenerations] = update(obj, modelY, origY, dim, lambda, countiter);
   end
   
   methods
