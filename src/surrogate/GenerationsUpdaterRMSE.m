@@ -38,7 +38,10 @@ classdef GenerationsUpdaterRMSE < GenerationsUpdater
 
         err = (1 - obj.alpha) * (lastRMSE / max(obj.rmse)) + obj.alpha * (1 - lastKendall) / 2;
 
-        obj.lastModelGenerations = obj.minModelGenerations + GenerationsUpdaterRMSE.simplesig(1 - log10(1+9*err), obj.steepness) * (obj.maxModelGenerations - obj.minModelGenerations);
+        newGenerations = obj.minModelGenerations + GenerationsUpdaterRMSE.simplesig(1 - log10(1+9*err), obj.steepness) * (obj.maxModelGenerations - obj.minModelGenerations);
+        newGenerations = (1 - obj.updateRate) * obj.lastModelGenerations + obj.updateRate * newGenerations;
+
+        obj.lastModelGenerations = min(obj.maxModelGenerations, max(obj.minModelGenerations, newGenerations))
 
         disp(['GenerationsUpdaterRMSE: model generations: ', num2str(round(obj.lastModelGenerations)), ' [ ', repmat('+', 1, round(obj.lastModelGenerations)), repmat(' ', 1, obj.maxModelGenerations - round(obj.lastModelGenerations)), ' ]']);
       end
