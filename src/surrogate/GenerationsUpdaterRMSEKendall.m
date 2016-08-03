@@ -131,7 +131,7 @@ classdef GenerationsUpdaterRMSEKendall < GenerationsUpdater
       obj.errThreshold = defopts(obj.parsedParams, 'errThreshold', 0.45);
       obj.steepness = defopts(obj.parsedParams, 'steepness', 5);
       obj.alpha = defopts(obj.parsedParams, 'alpha', 0.2);
-      obj.transferFun = defopts(obj.parsedParams, 'transferFun', '@(x) x');
+      obj.transferFun = defopts(obj.parsedParams, 'transferFun', @(x) x);
       obj.rmse = [];
       obj.err = [];
       obj.origGenerations = 1;
