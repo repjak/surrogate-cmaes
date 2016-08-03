@@ -5,11 +5,11 @@ classdef GenerationsUpdaterFactory
   methods (Static)
     function obj = createUpdater(surrogateOpts)
       switch lower(surrogateOpts.updaterParams.updaterType)
-        case 'rmse'
+        case 'rmsekendall'
           if ~isfield(surrogateOpts, 'updaterParams')
-            error('Missing parameters for GenerationsUpdaterRMSE');
+            error('Missing parameters for GenerationsUpdaterRMSEKendall');
           end
-          obj = GenerationsUpdaterRMSE(surrogateOpts.updaterParams);
+          obj = GenerationsUpdaterRMSEKendall(surrogateOpts.updaterParams);
         otherwise
           % including surrogateOpts.updaterType == 'constant'
           %

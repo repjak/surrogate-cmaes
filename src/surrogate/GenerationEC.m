@@ -32,7 +32,7 @@ classdef GenerationEC < EvolutionControl
       obj.model = [];
       obj.generationsUpdater = GenerationsUpdaterFactory.createUpdater(surrogateOpts);
     end
-    
+
     function [fitness_raw, arx, arxvalid, arz, counteval, lambda, archive, surrogateStats] = runGeneration(obj, cmaesState, surrogateOpts, sampleOpts, archive, counteval, varargin)
       % Run one generation of generation evolution control
       
@@ -238,14 +238,26 @@ classdef GenerationEC < EvolutionControl
           obj.lastOriginalGenerations = [obj.lastOriginalGenerations, obj.currentGeneration];
         case 'original'
           if (obj.remaining == 0)
-            obj.currentMode = 'model';
-            obj.remaining = obj.modelGenerations;
+            if obj.modelGenerations
+              obj.currentMode = 'model';
+              obj.remaining = obj.modelGenerations;
+            else
+              % skip the model phase
+              assert(obj.origGenerations > 0, 'GenerationEC: either origGenerations or modelGenerations must be positive');
+              obj.remaining = obj.origGenerations;
+            end
           end
           obj.lastOriginalGenerations = [obj.lastOriginalGenerations, obj.currentGeneration];
         case 'model'
           if (obj.remaining == 0)
-            obj.currentMode = 'original';
-            obj.remaining = obj.origGenerations;
+            if obj.origGenerations
+              obj.currentMode = 'original';
+              obj.remaining = obj.origGenerations;
+            else
+              % skip the original phase
+              assert(obj.modelGenerations > 0, 'GenerationEC: either origGenerations or modelGenerations must be positive');
+              obj.remaining = obj.modelGenerations;
+            end
           end
         otherwise
           error('GenerationEC: wrong currentMode.');

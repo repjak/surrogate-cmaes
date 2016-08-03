@@ -2,6 +2,7 @@ classdef GenerationsUpdaterConstant < GenerationsUpdater
   properties
     origGenerations
     modelGenerations
+    parsedParams
   end
 
   methods

@@ -1,16 +1,19 @@
-classdef GenerationsUpdaterRMSE < GenerationsUpdater
+classdef GenerationsUpdaterRMSEKendall < GenerationsUpdater
   properties
     parsedParams
     minModelGenerations
     maxModelGenerations
+    errThreshold
     updateRate
     rmse
     kendall
+    err
     generations
     lastModelGenerations
     origGenerations
     steepness
     alpha
+    transferFun
   end
 
   methods (Static)
@@ -29,19 +32,41 @@ classdef GenerationsUpdaterRMSE < GenerationsUpdater
 
       if isempty(modelY)
         obj.rmse(end+1) = NaN;
-      else      
-        lastRMSE = sqrt(sum((modelY - origY).^2))/length(origY);
-        lastKendall = corr(modelY, origY, 'type', 'Kendall');
+        obj.kendall(end+1) = NaN;
+        obj.err(end+1) = NaN;
+      else
+        newRMSE = sqrt(sum((modelY - origY).^2))/length(origY);
+        newKendall = corr(modelY, origY, 'type', 'Kendall');
 
-        obj.rmse(end+1) = lastRMSE;
-        obj.kendall(end+1) = lastKendall;
+        if ~isempty(obj.rmse) && ~all(isnan(obj.rmse))
+          maxRMSE = max(obj.rmse);
+        else
+          maxRMSE = newRMSE;
+        end
 
-        err = (1 - obj.alpha) * (lastRMSE / max(obj.rmse)) + obj.alpha * (1 - lastKendall) / 2;
+        % combine the RMSE and Kendall ranking coefficient
+        newErr = (1 - obj.alpha) * (newRMSE / maxRMSE) + obj.alpha * (1 - newKendall) / 2;
 
-        newGenerations = obj.minModelGenerations + GenerationsUpdaterRMSE.simplesig(1 - log10(1+9*err), obj.steepness) * (obj.maxModelGenerations - obj.minModelGenerations);
-        newGenerations = (1 - obj.updateRate) * obj.lastModelGenerations + obj.updateRate * newGenerations;
+        % exponential smoothing
+        if ~isempty(obj.err) && ~all(isnan(obj.err))
+          errValid = obj.err(~isnan(obj.err));
+          lastErr = errValid(end);
+        else
+          lastErr = 0.5;
+        end
 
-        obj.lastModelGenerations = min(obj.maxModelGenerations, max(obj.minModelGenerations, newGenerations))
+        newErr = (1 - obj.updateRate) * lastErr + obj.updateRate * newErr;
+
+        obj.rmse(end+1) = newRMSE;
+        obj.kendall(end+1) = newKendall;
+        obj.err(end+1) = newErr;
+
+        % normalize into an interval below an error threshold and apply a
+        % transfer function
+        errNormalized = obj.transferFun(max(1 - newErr / obj.errThreshold, 0));
+
+        % min-max scaling and rounding
+        obj.lastModelGenerations = round(obj.minModelGenerations + errNormalized * (obj.maxModelGenerations - obj.minModelGenerations));
 
         disp(['GenerationsUpdaterRMSE: model generations: ', num2str(round(obj.lastModelGenerations)), ' [ ', repmat('+', 1, round(obj.lastModelGenerations)), repmat(' ', 1, obj.maxModelGenerations - round(obj.lastModelGenerations)), ' ]']);
       end
@@ -50,7 +75,7 @@ classdef GenerationsUpdaterRMSE < GenerationsUpdater
       newModelGenerations = round(obj.lastModelGenerations);
     end
 
-    function obj = GenerationsUpdaterRMSE(parameters)
+    function obj = GenerationsUpdaterRMSEKendall(parameters)
       % constructor
       obj = obj@GenerationsUpdater(parameters);
       if ~isstruct(parameters)
@@ -61,9 +86,12 @@ classdef GenerationsUpdaterRMSE < GenerationsUpdater
       obj.minModelGenerations = defopts(obj.parsedParams, 'minModelGenerations', 1);
       obj.maxModelGenerations = defopts(obj.parsedParams, 'maxModelGenerations', 5);
       obj.updateRate = defopts(obj.parsedParams, 'updateRate', 0.5);
+      obj.errThreshold = defopts(obj.parsedParams, 'errThreshold', 0.45);
       obj.steepness = defopts(obj.parsedParams, 'steepness', 5);
       obj.alpha = defopts(obj.parsedParams, 'alpha', 0.2);
+      obj.transferFun = defopts(obj.parsedParams, 'transferFun', '@(x) x');
       obj.rmse = [];
+      obj.err = [];
       obj.origGenerations = 1;
       obj.lastModelGenerations = obj.minModelGenerations;
     end
