@@ -49,7 +49,7 @@ classdef GenerationsUpdaterRMSEKendall < GenerationsUpdater
       assert(size(Xm, 2) == size(Xn, 2), 'Dimensions must agree');
       dim = size(Xm, 2);
 
-      % tolerance on squared distance of vectors when their considered equal
+      % tolerance on squared distance of vectors when they're considered equal
       tol = 1e-9;
 
       assert(all(size(theta) == [dim+3 1]), ['theta must be a row vector of ''' dim + 3 ''' hyperparameters']);
