@@ -11,6 +11,7 @@ classdef GenerationEC < EvolutionControl & Observable
     lastOriginalGenerations = [];
     remaining           = 2;
     generationsUpdater;
+    cmaesState;
   end
 
   methods
@@ -31,7 +32,7 @@ classdef GenerationEC < EvolutionControl & Observable
       obj.currentGeneration   = 1;
       obj.lastModel = [];
       obj.model = [];
-      obj.generationsUpdater = GenerationsUpdaterFactory.createUpdater(surrogateOpts);
+      obj.generationsUpdater = GenerationsUpdaterFactory.createUpdater(obj, surrogateOpts);
       obj.counteval = 0;
     end
 
@@ -40,11 +41,13 @@ classdef GenerationEC < EvolutionControl & Observable
       
       surrogateStats = NaN(1, 7);
       origEvaled = false(1, cmaesState.lambda);
-      
+      obj.cmaesState = cmaesState;
+
       % extract cmaes state variables
       xmean = cmaesState.xmean;
       sigma = cmaesState.sigma;
       lambda = cmaesState.lambda;
+      mu = cmaesState.mu;
       dim = cmaesState.dim;
       BD = cmaesState.BD;
       fitfun_handle = cmaesState.fitfun_handle;
@@ -74,7 +77,7 @@ classdef GenerationEC < EvolutionControl & Observable
             obj.lastModel = obj.model;
 
             [predictY, ~] = obj.model.predict(arxvalid');
-            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(predictY, fitness_raw', dim, lambda, obj.currentGeneration);
+            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arxvalid, predictY, fitness_raw', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
           else
             % not enough training data :( -- continue with another
             % 'original'-evaluated generation
@@ -170,7 +173,7 @@ classdef GenerationEC < EvolutionControl & Observable
 
             % adapt generation counts
             [predictY, ~] = obj.model.predict(arxvalid_');
-            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(predictY, fitness_raw_', dim, lambda, obj.currentGeneration);
+            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arxvalid, predictY, fitness_raw_', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
 
             % leave the next generation as a model-evaluated:
             obj = obj.holdOn();

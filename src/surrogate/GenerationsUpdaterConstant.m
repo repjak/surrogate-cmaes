@@ -12,16 +12,16 @@ classdef GenerationsUpdaterConstant < GenerationsUpdater
       modelGenerations = obj.modelGenerations;
     end
 
-    function obj = GenerationsUpdaterConstant(parameters)
-      obj = obj@GenerationsUpdater(parameters);
+    function obj = GenerationsUpdaterConstant(ec, parameters)
+      obj = obj@GenerationsUpdater(ec, parameters);
 
       if isstruct(parameters)
-        obj.origGenerations = defopts(parameters, 'origGenerations', 1);
-        obj.modelGenerations = defopts(parameters, 'modelGenerations', 1);
+        obj.origGenerations = defopts(parameters, 'geneECAdaptive_origGenerations', 1);
+        obj.modelGenerations = defopts(parameters, 'geneECAdaptive_modelGenerations', 1);
       elseif iscell(parameters)
         parsedParams = struct(parameters{:});
-        obj.origGenerations = defopts(parsedParams, 'origGenerations', 1);
-        obj.modelGenerations = defopts(parsedParams, 'modelGenerations', 1);
+        obj.origGenerations = defopts(parsedParams, 'geneECAdaptive_origGenerations', 1);
+        obj.modelGenerations = defopts(parsedParams, 'geneECAdaptive_modelGenerations', 1);
       else
         assert(isnumeric(parameters) && length(parameters) == 2, 'Invalid parameters for GenerationsUpdaterConstant');
         obj.origGenerations = parameters(1);
