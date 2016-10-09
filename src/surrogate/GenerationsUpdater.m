@@ -177,6 +177,13 @@ classdef (Abstract) GenerationsUpdater < handle
         localWeights = localWeights(bValues) ./ sum(localWeights(bValues));
         % return the weighted sum
         value = sum(localWeights .* values(bValues));
+      case 'lastvalid'
+        % take the last valid (non-NaN) value
+        nonNanValues = values(bValues);
+        value = nonNanValues(end);
+      case 'last'
+        % take the last value (even if NaN)
+        value = obj.historyErr(end);
       case 'expsmoothing'
         if length(bValues) < 5
           obj.errSmoothed = median(values(bValues));
