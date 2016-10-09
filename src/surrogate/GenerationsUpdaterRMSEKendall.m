@@ -6,7 +6,7 @@ classdef GenerationsUpdaterRMSEKendall < GenerationsUpdater
   end
 
   methods
-    function err = computeError(obj, modelY, origY, ~, ~, countiter, varargin)
+    function err = computeErr(obj, ~, modelY, origY, ~, ~, countiter, varargin)
       newRMSE = sqrt(sum((modelY - origY).^2))/length(origY);
       newKendall = corr(modelY, origY, 'type', 'Kendall');
 

@@ -94,7 +94,7 @@ classdef (Abstract) GenerationsUpdater < handle
   methods
     function [origGenerations, modelGenerations] = update(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin)
       % a template method to estimate new model lifelength
-      if (nargin >= 9), obj.ec = varargin{1}{:}; end
+      if (nargin >= 9), obj.ec = varargin{:}; end
       obj.historyErr((obj.lastUpdateIteration+1):(countiter-1)) = NaN;
       obj.historyModelGenerations((obj.lastUpdateIteration+1):(countiter-1)) = obj.lastModelGenerations;
 
@@ -222,6 +222,9 @@ classdef (Abstract) GenerationsUpdater < handle
       obj.aggregateType = defopts(obj.parsedParams, 'geneECAdaptive_aggregateType', 'weightedSum');
       % a transfer function applied to error, such as a sigmoid function
       obj.transferFun = defopts(obj.parsedParams, 'geneECAdaptive_transferFun', @(x) x);
+      if ischar(obj.transferFun)
+        obj.transferFun = evalin('caller', obj.transferFun);
+      end
 
       % lowest and highest error which affect gain util it saturates to 0 or 1
       obj.lowErrThreshold  = defopts(obj.parsedParams, 'geneECAdaptive_lowErrThreshold', 0.1);

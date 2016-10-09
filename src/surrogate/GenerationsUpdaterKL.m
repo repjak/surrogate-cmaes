@@ -50,7 +50,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       obj.historyKL(countiter) = newKL;
       maxKL = max(obj.historyKL);
       if isnan(maxKL), maxKL = newKL; end
-      err = newKL/maxKL;
+      err = max(newKL/maxKL, 0);
     end
 
     function [xmean, C, sigma] = cmaesUpdate(obj, arx, arfitness, cmaesState)
