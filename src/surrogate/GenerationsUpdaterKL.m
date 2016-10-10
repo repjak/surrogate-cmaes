@@ -2,6 +2,10 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
   properties
     cmConstants
     historyKL
+    % the historical maximum can be overestimated by a discount factor at normalization to avoid too pessimistic behaviour
+    normDiscountFactor
+    % a number of iterations in which the discount factor linearly diminishes to 1
+    normDiscountIterations
   end
 
   methods (Static)
@@ -25,6 +29,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       mdiff = m2 - m1;
 
       divKL = 0.5 * (trprod + mdiff' * invC2 * mdiff - dim + (logdetC2 - logdetC1));
+      divKL = max(0, divKL);
     end
 
     function cov_logdet = cov_logdet(L)
@@ -49,8 +54,19 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       obj.historyKL(end+1:(countiter-1)) = NaN;
       obj.historyKL(countiter) = newKL;
       maxKL = max(obj.historyKL);
-      if isnan(maxKL), maxKL = newKL; end
-      err = max(newKL/maxKL, 0);
+
+      if maxKL == 0
+        err = 0;
+        return;
+      end
+
+      if (obj.normDiscountIterations == 0 || obj.normDiscountFactor < 1)
+        discount = 1;
+      else
+        it = length(obj.historyKL(~(obj.historyKL == 0) & ~isnan(obj.historyKL))) - 1;
+        discount = max(obj.normDiscountFactor - it * (obj.normDiscountFactor - 1) / obj.normDiscountIterations, 1);
+      end
+      err = newKL / (discount *  maxKL);
     end
 
     function [xmean, C, sigma] = cmaesUpdate(obj, arx, arfitness, cmaesState)
@@ -129,12 +145,14 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
         );
       end
 
-      [origGenerations, modelGenerations] = update@GenerationsUpdater(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin);
+      [origGenerations, modelGenerations] = update@GenerationsUpdater(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin{:});
     end
 
     function obj = GenerationsUpdaterKL(ec, parameters)
       % constructor
       obj = obj@GenerationsUpdater(ec, parameters);
+	    obj.normDiscountFactor = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountFactor', 2);
+	    obj.normDiscountIterations = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountIterations', 5);
       obj.cmConstants = struct();
     end
   end
