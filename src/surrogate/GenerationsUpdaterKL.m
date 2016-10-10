@@ -1,6 +1,8 @@
 classdef GenerationsUpdaterKL < GenerationsUpdater
   properties
     cmConstants
+    lastMu
+    lastLambda
     historyKL
     % the historical maximum can be overestimated by a discount factor at normalization to avoid too pessimistic behaviour
     normDiscountFactor
@@ -121,8 +123,8 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
     end
 
     function [origGenerations, modelGenerations] = update(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin)
-      if isempty(fields(obj.cmConstants))
-        % initialization (from optimalized cmaes)
+      if mu ~= obj.lastMu || lambda ~= obj.lastLambda
+        % cmaes internal parameters (from optimalized cmaes code)
         % TODO: perhaps initialize these as part of cmOptions
         chiN = dim^0.5*(1-1/(4*dim)+1/(21*dim^2));
         weights = log(max(mu, lambda/2) + 1/2)-log(1:mu)';
@@ -145,6 +147,9 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
         );
       end
 
+      obj.lastMu = mu;
+      obj.lastLambda = lambda;
+
       [origGenerations, modelGenerations] = update@GenerationsUpdater(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin{:});
     end
 
@@ -154,7 +159,8 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
 	    obj.normDiscountFactor = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountFactor', 2);
 	    obj.normDiscountIterations = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountIterations', 5);
       obj.cmConstants = struct();
+      obj.lastMu = NaN;
+      obj.lastLambda = NaN;
     end
   end
 end
-
