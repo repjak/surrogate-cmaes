@@ -104,6 +104,9 @@ classdef (Abstract) GenerationsUpdater < handle
         err = NaN;
       else
         err = computeErr(obj, arxvalid, modelY, origY, dim, lambda, countiter);
+        if isnan(err)
+          fprintf('GenerationsUpdater.update(): current error is NaN');
+        end
       end
       obj.historyErr(countiter) = err;
 
