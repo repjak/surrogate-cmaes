@@ -1,4 +1,4 @@
-function divKL = mvnKL(m1, C1, m2, C2)
+function mvnKL = mvnKL(m1, C1, m2, C2)
   % Compute Kullback-Leibler divergence of two multivariate
   % distributions given by means 'm1' and 'm2', respectively
   % and positive semidefinite covariance matrices 'C1' and 'C2',
@@ -9,22 +9,28 @@ function divKL = mvnKL(m1, C1, m2, C2)
   assert(length(m1) == length(m2) && all(size(C1) == size(C2)), 'Dimensions don''t match');
 
   [L1, p1] = chol(C1, 'lower');
-  if p1 > 0, return NaN, end
+  if p1 > 0
+    mvnKL = NaN;
+	return;
+  end
 
-  logdetC1 = GenerationsUpdaterKL.cov_logdet(L1);
+  logdetC1 = cov_logdet(L1);
 
   [L2, p2] = chol(C2, 'lower');
-  if p2 > 0, return NaN, end
+  if p2 > 0
+    mvnKL = NaN;
+	return;
+  end
 
-  logdetC2 = GenerationsUpdaterKL.cov_logdet(L2);
-  invC2 = GenerationsUpdaterKL.cov_inv(L2);
+  logdetC2 = cov_logdet(L2);
+  invC2 = cov_inv(L2);
 
   dim = length(m1);
   trprod = invC2(:)'*C1(:);
   mdiff = m2 - m1;
 
-  divKL = 0.5 * (trprod + mdiff' * invC2 * mdiff - dim + (logdetC2 - logdetC1));
-  divKL = max(0, divKL);
+  mvnKL = 0.5 * (trprod + mdiff' * invC2 * mdiff - dim + (logdetC2 - logdetC1));
+  mvnKL = max(0, mvnKL);
 end
 
 function cov_logdet = cov_logdet(L)
