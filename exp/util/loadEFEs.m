@@ -1,3 +1,11 @@
+%LOADEFES -- loads EFE values from results *.mat files
+%
+% [efes, funs, dims, stats] = loadEFEs(path)
+% Goes into the directory @path, loads corresponding 'scmaes_params.mat' file
+% with definition of settings. Then loads each of the results *.mat file,
+% takes the EFE values from the corresponding results and returns all such values
+% in the @efes return paramter. Different statistics are returned in @stats return
+% parameter.
 function [efes, funs, dims, stats] = loadEFEs(path)
   TARGET = 1e-8;
 
@@ -49,7 +57,10 @@ function [efes, funs, dims, stats] = loadEFEs(path)
 
         % filename of the file with results
         expFileID = [num2str(ifun) '_' num2str(dim) 'D_' num2str(id)];
-        resultsFile = [path filesep exp_id '_results_' expFileID];
+        resultsFile = [path filesep exp_id '_results_' expFileID '.mat'];
+        if (~exist(resultsFile, 'file'))
+          continue;
+        end
 
         try
           % try to load results
@@ -64,7 +75,7 @@ function [efes, funs, dims, stats] = loadEFEs(path)
           efes{iAlg}{funId, dimId} = zeros(1, nInstances);
           efes{iAlg}{funId, dimId}(reached)  = evals(reached);
           efes{iAlg}{funId, dimId}(~reached) = maxfunevals * (1 + 1/9 * log( fbests(~reached) / TARGET ) );
-          
+
           clear('res');
 
         catch
@@ -110,17 +121,18 @@ function [efes, funs, dims, stats] = loadEFEs(path)
   stats.sum_lquart_ranks = sum(stats.lquart_ranks, 1);
   [stats.sort_lquart_ranks, stats.sort_lquart_idx] = sort(stats.sum_lquart_ranks);
 
-  disp('The best 10 settings (ids upper, sum-ranks of f/d''s lower):');
-  disp([stats.sort_median_idx(1:10); ...
-        stats.median_ranks(:,stats.sort_median_idx(1:10))]);
+  if (length(stats.sort_median_idx) >= 10)
+    disp('The best 10 settings (ids upper, sum-ranks of f/d''s lower):');
+    disp([stats.sort_median_idx(1:10); ...
+          stats.median_ranks(:,stats.sort_median_idx(1:10))]);
+    disp('');
 
-  disp('');
-
-  disp('ID''s of the best 10 settings:');
-  stats.best_ids = [];
-  for i = 1:size(stats.medians,1)
-    stats.best_ids = [stats.best_ids (stats.sort_median_idx(1:10) + (i-1)*nAlgs)];
+    disp('ID''s of the best 10 settings:');
+    stats.best_ids = [];
+    for i = 1:size(stats.medians,1)
+      stats.best_ids = [stats.best_ids (stats.sort_median_idx(1:10) + (i-1)*nAlgs)];
+    end
+    stats.best_ids = sort(stats.best_ids);
+    disp(stats.best_ids);
   end
-  stats.best_ids = sort(stats.best_ids);
-  disp(stats.best_ids);
 end
