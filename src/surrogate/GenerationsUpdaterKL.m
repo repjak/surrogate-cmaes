@@ -11,9 +11,9 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
   end
 
   methods
-    function err = computeErr(obj, arxvalid, modelY, origY, ~, ~, countiter, varargin)
-      [xmean1, C1, sigma1] = cmaesUpdate(arxvalid, modelY, obj.ec.cmaesState, obj.cmaesConstants);
-      [xmean2, C2, sigma2] = cmaesUpdate(arxvalid, origY, obj.ec.cmaesState, obj.cmaesConstants);
+    function err = computeErr(obj, arx, arxvalid, arz, modelY, origY, ~, ~, countiter, varargin)
+      [xmean1, C1, sigma1] = cmaesUpdate(arx, arxvalid, arz, modelY, obj.ec.cmaesState, obj.cmConstants);
+      [xmean2, C2, sigma2] = cmaesUpdate(arx, arxvalid, arz, origY, obj.ec.cmaesState, obj.cmConstants);
       newKL = mvnKL(xmean1, sigma1*C1, xmean2, sigma2*C2);
 
       obj.historyKL(end+1:(countiter-1)) = NaN;
@@ -34,7 +34,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       err = newKL / (discount *  maxKL);
     end
 
-    function [origGenerations, modelGenerations] = update(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin)
+    function [origGenerations, modelGenerations] = update(obj, arx, arxvalid, arz, modelY, origY, dim, mu, lambda, countiter, varargin)
       if mu ~= obj.lastMu || lambda ~= obj.lastLambda
         % cmaes internal parameters (from optimalized cmaes code)
         % TODO: perhaps initialize these as part of cmOptions
@@ -62,7 +62,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       obj.lastMu = mu;
       obj.lastLambda = lambda;
 
-      [origGenerations, modelGenerations] = update@GenerationsUpdater(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin{:});
+      [origGenerations, modelGenerations] = update@GenerationsUpdater(obj, arx, arxvalid, arz,  modelY, origY, dim, mu, lambda, countiter, varargin{:});
     end
 
     function obj = GenerationsUpdaterKL(ec, parameters)

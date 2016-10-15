@@ -36,7 +36,7 @@ classdef (Abstract) GenerationsUpdater < handle
   end
 
   methods (Abstract)
-    err = computeErr(obj, arxvalid, modelY, origY, dim, lambda, countiter, varargin);
+    err = computeErr(obj, arx, arxvalid, arz, modelY, origY, dim, lambda, countiter, varargin);
   end
 
   methods (Static)
@@ -92,7 +92,7 @@ classdef (Abstract) GenerationsUpdater < handle
   end
 
   methods
-    function [origGenerations, modelGenerations] = update(obj, arxvalid, modelY, origY, dim, mu, lambda, countiter, varargin)
+    function [origGenerations, modelGenerations] = update(obj, arx, arxvalid, arz, modelY, origY, dim, mu, lambda, countiter, varargin)
       % a template method to estimate new model lifelength
       if (nargin >= 9), obj.ec = varargin{:}; end
       obj.historyErr((obj.lastUpdateIteration+1):(countiter-1)) = NaN;
@@ -103,7 +103,7 @@ classdef (Abstract) GenerationsUpdater < handle
           || (max(origY) - min(origY)) == 0)
         err = NaN;
       else
-        err = computeErr(obj, arxvalid, modelY, origY, dim, lambda, countiter);
+        err = computeErr(obj, arx, arxvalid, arz, modelY, origY, dim, lambda, countiter);
         if isnan(err)
           fprintf('GenerationsUpdater.update(): current error is NaN');
         end

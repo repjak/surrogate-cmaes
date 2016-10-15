@@ -1,6 +1,6 @@
 classdef GenerationsUpdaterRankDiff < GenerationsUpdater
   methods
-    function err = computeErr(obj, arxvalid, modelY, origY, dim, lambda, countiter, varargin)
+    function err = computeErr(obj, ~, ~, ~, modelY, origY, dim, lambda, countiter, varargin)
       err = errRankMu(modelY, origY, obj.ec.cmaesState.mu);
     end
 

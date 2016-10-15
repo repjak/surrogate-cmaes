@@ -7,7 +7,7 @@ classdef GenerationsUpdaterConstant < GenerationsUpdater
 
   methods
     % get new values
-    function [origGenerations, modelGenerations] = update(obj, ~, ~, ~, ~, ~)
+    function [origGenerations, modelGenerations] = update(obj, ~, ~, ~, ~, ~, ~, ~)
       origGenerations = obj.origGenerations;
       modelGenerations = obj.modelGenerations;
     end
