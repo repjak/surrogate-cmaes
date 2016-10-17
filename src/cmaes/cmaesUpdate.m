@@ -33,7 +33,7 @@ function [xmean, C, sigma] = cmaesUpdate(arx, ~, arz, arfitness, cmaesState, cma
         + sqrt(cs*(2-cs)*mueff) * (B*zmean);
   hsig = sum(ps.^2)/(1-(1-cs)^(2*counteval/lambda))/N < 2 + 4/(N+1);
   pc = (1-cc) * pc ...
-        + hsig * (sqrt(cc*(2-cc)*mueff)/sigma) * (xmean-exxold);
+        + hsig * (sqrt(cc*(2-cc)*mueff)/sigma) * (xmean-xold);
 
   % Adapt covariance matrix C
   artmp = (arx(:,arindex(1:mu)) - repmat(xold,1,mu)) / sigma;  % mu difference vectors
