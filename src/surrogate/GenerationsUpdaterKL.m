@@ -40,6 +40,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
         % TODO: perhaps initialize these as part of cmOptions
         chiN = dim^0.5*(1-1/(4*dim)+1/(21*dim^2));
         weights = log(max(mu, lambda/2) + 1/2)-log(1:mu)';
+        weights = weights/sum(weights); % normalize recombination weights
         mueff = sum(weights)^2/sum(weights.^2); % variance-effective size of mu
         cc = (4 + mueff/dim) / (dim+4 + 2*mueff/dim); % cumulation constant for pc'
         cs = (mueff+2)/(dim+mueff+3);
