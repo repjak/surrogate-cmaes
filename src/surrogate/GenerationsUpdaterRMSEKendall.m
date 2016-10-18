@@ -23,7 +23,7 @@ classdef GenerationsUpdaterRMSEKendall < GenerationsUpdater
       % constructor
       obj = obj@GenerationsUpdater(ec, parameters);
       % weight of Kendall coeficient over RMSE, from (0, 1)
-      obj.alpha = defopts(obj.parsedParams, 'geneECAdaptive_weightKendallRMSE', 0.8);
+      obj.alpha = defopts(obj.parsedParams, 'geneECAdaptive_weightKendallRMSE', 1);
     end
   end
 end
