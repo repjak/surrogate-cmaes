@@ -69,8 +69,10 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
     function obj = GenerationsUpdaterKL(ec, parameters)
       % constructor
       obj = obj@GenerationsUpdater(ec, parameters);
-	    obj.normDiscountFactor = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountFactor', 2);
-	    obj.normDiscountIterations = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountIterations', 5);
+      obj.normDiscountFactor = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountFactor', 2);
+      obj.normDiscountIterations = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountIterations', 5);
+      obj.lowErrThreshold  = defopts(obj.parsedParams, 'geneECAdaptive_lowErrThreshold', 0.1);
+      obj.highErrThreshold = defopts(obj.parsedParams, 'geneECAdaptive_highErrThreshold', 0.95);
       obj.cmConstants = struct();
       obj.lastMu = NaN;
       obj.lastLambda = NaN;
