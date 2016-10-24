@@ -1,6 +1,5 @@
 classdef (Abstract) OrigRatioUpdater < handle
   properties (Abstract)
-    origParams
     lastRatio
   end
   
@@ -10,9 +9,8 @@ classdef (Abstract) OrigRatioUpdater < handle
   end
   
   methods
-    function obj = OrigRatioUpdater(parameters)
+    function obj = OrigRatioUpdater()
       % constructor
-      obj.origParams = parameters;
     end
     
     function value = getLastRatio(obj, countiter)

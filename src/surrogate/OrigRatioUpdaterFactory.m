@@ -1,13 +1,16 @@
 classdef OrigRatioUpdaterFactory
+% TODO
+% [ ] remove updaterParams and use DTAdaptive_* parameters instead
   methods (Static)
     function obj = createUpdater(ec, surrogateOpts)
       switch lower(surrogateOpts.updaterType)
-        case 'rmse'
-          obj = OrigRatioUpdaterRMSE(surrogateOpts.updaterParams);
+        % % these are not supported anymore:
+        % case 'rmse'
+        %   obj = OrigRatioUpdaterRMSE(surrogateOpts.updaterParams);
         % case 'kendall'
         %   obj = OrigRatioUpdaterKendall(surrogateOpts.updaterParams);
         case 'rankdiff'
-          obj = OrigRatioUpdaterRankDiff(ec, surrogateOpts);
+          obj = OrigRatioUpdaterRankDiff2(ec, surrogateOpts);
         otherwise
           % including surrogateOpts.updaterType == 'constant'
           %
