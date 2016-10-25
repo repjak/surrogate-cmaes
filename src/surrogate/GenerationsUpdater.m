@@ -19,20 +19,16 @@ classdef (Abstract) GenerationsUpdater < handle
     lastModelGenerations
     origGenerations
     updateRate
+    updateRateDown
+    defaultErr
     lowErrThreshold
     highErrThreshold
-    aggregateType
-    weights
-    errSmoothingFactor
-    errSmoothed
     transferFun
     gain
-    plotDebug
     historyErr
-    historyAggErr
+    historySmoothedErr
     historyModelGenerations
     lastUpdateIteration
-    fh
   end
 
   methods (Abstract)
@@ -96,6 +92,7 @@ classdef (Abstract) GenerationsUpdater < handle
       % a template method to estimate new model lifelength
       if (nargin >= 9), obj.ec = varargin{:}; end
       obj.historyErr((obj.lastUpdateIteration+1):(countiter-1)) = NaN;
+      obj.historySmoothedErr((obj.lastUpdateIteration+1):(countiter-1)) = NaN;
       obj.historyModelGenerations((obj.lastUpdateIteration+1):(countiter-1)) = obj.lastModelGenerations;
 
       % compute current error and add it to history
@@ -110,95 +107,49 @@ classdef (Abstract) GenerationsUpdater < handle
       end
       obj.historyErr(countiter) = err;
 
-      % aggregate historical errors
-      aggErr = obj.aggregateWithHistory();
+      % calculate exponentialy smoothed value of the error
+      %      e_{t} = (1-a) * e_{t-1}  +  a * err
+      % and add it to the history
+      lastIdx = find(~isnan(obj.historySmoothedErr(1:max(countiter-1,0))), 1, 'last');
+      if (isempty(lastIdx))
+        % there's no valid smoothed error value in history, use 'defaultErr'
+        lastSmoothedErr = obj.defaultErr;
+      else
+        % take the last non-NaN smoothed error value
+        lastSmoothedErr = obj.historySmoothedErr(lastIdx);
+      end
+      if (~isnan(err))
+        % we have got a new current error ==> use EWA smooth
+        if (err > lastSmoothedErr)
+          % err is higher than last smoothed
+          smoothedErr = (1-obj.updateRate) * lastSmoothedErr + obj.updateRate * err;
+        else
+          % err is lower than last smoothed
+          smoothedErr = (1-obj.updateRateDown) * lastSmoothedErr + obj.updateRateDown * err;
+        end
+
+        obj.historySmoothedErr(countiter) = smoothedErr;
+      else
+        % we do not have a new error value, just use the last one
+        smoothedErr = lastSmoothedErr;
+        obj.historySmoothedErr(countiter) = NaN;
+      end
 
       % the error is truncated by a threshold interval
       % a transfer function is applied
       % the gain is scaled into an admissible interval
-      if (~isnan(aggErr))
-        obj.gain = min(max(0, aggErr - obj.lowErrThreshold), (obj.highErrThreshold - obj.lowErrThreshold)) / (obj.highErrThreshold - obj.lowErrThreshold);
-        obj.gain = obj.transferFun(1-obj.gain);
-        newModelGenerations = obj.minModelGenerations + obj.gain * (obj.maxModelGenerations - obj.minModelGenerations);
-      else
-        obj.gain = NaN;
-        newModelGenerations = obj.startModelGenerations;
-      end
+      obj.gain = min(max(0, smoothedErr - obj.lowErrThreshold), (obj.highErrThreshold - obj.lowErrThreshold)) / (obj.highErrThreshold - obj.lowErrThreshold);
+      obj.gain = obj.transferFun(1-obj.gain);
+      modelGenerations = round(obj.minModelGenerations + obj.gain * (obj.maxModelGenerations - obj.minModelGenerations));
+
       % Debug:
-      fprintf('err = %.2f ;  gain = %.2f ; output = %.2f\n', err, obj.gain, newModelGenerations);
-
-      % obj.lastModelGenerations -- the last used number of model generations (from the last updated orig generation)
-      if (countiter > 1)
-        obj.lastModelGenerations = obj.historyModelGenerations(countiter-1);
-      else
-        obj.lastModelGenerations = obj.startModelGenerations;
-      end
-
-      % the final model's lifelength is exponentially updated:   l = (1-a) * l_old  +  a * l_new
-      modelGenerations = round((1-obj.updateRate) * obj.lastModelGenerations + obj.updateRate * newModelGenerations);
-      modelGenerations = min(max(modelGenerations, obj.minModelGenerations), obj.maxModelGenerations);
+      fprintf('err = %.2f ;  gain = %.2f ; output = %.2f\n', err, obj.gain, modelGenerations);
 
       obj.historyModelGenerations(countiter) = modelGenerations;
       obj.lastModelGenerations = modelGenerations;
       obj.lastUpdateIteration = countiter;
 
-      if obj.plotDebug
-        fprintf('New model generations=%0.2f based on err trend=%0.2f\n', modelGenerations, newModelGenerations);
-        obj.historyAggErr(countiter) = aggErr;
-      end
-
       origGenerations = obj.origGenerations;
-    end
-
-    function value = aggregateWithHistory(obj)
-      % aggregate last criterion values into one value
-      %
-      % This implementation:
-      % - ignores NaN values in history (less values are used then)
-      %
-      % (a) takes median of the last length(weights) values
-      %     or
-      % (b) takes weighted sum of the last length(weights) values
-
-      % take at most nHistory last values
-      nHistory = min(length(obj.historyErr), length(obj.weights));
-      values = obj.historyErr((end-nHistory+1):end);
-      % identify NaN's
-      bValues  = ~isnan(values);
-      % return with NaN if no valid values in history
-      if (~any(bValues))
-        value = NaN;
-        return;
-      end
-
-      switch lower(obj.aggregateType)
-      case 'median'
-        value = median(values(bValues));
-      case 'weightedsum'
-        % take adequate weights and re-norm them to sum to 1
-        localWeights = obj.weights((end-nHistory+1):end);
-        localWeights = localWeights(bValues) ./ sum(localWeights(bValues));
-        % return the weighted sum
-        value = sum(localWeights .* values(bValues));
-      case 'lastvalid'
-        % take the last valid (non-NaN) value
-        nonNanValues = values(bValues);
-        value = nonNanValues(end);
-      case 'last'
-        % take the last value (even if NaN)
-        value = obj.historyErr(end);
-      case 'expsmoothing'
-        if length(bValues) < 5
-          obj.errSmoothed = median(values(bValues));
-          value = obj.errSmoothed;
-        else
-          lastbValue = bValues(end);
-          obj.errSmoothed = (1-obj.errSmoothingFactor)*obj.errSmoothed + obj.errSmoothingFactor*values(lastbValue);
-          value = obj.errSmoothed;
-        end
-      otherwise
-        error('GenerationsUpdater: aggregateType ''%s'' not implemented.', obj.aggregateType);
-      end
     end
 
     function obj = GenerationsUpdater(ec, parameters)
@@ -215,29 +166,28 @@ classdef (Abstract) GenerationsUpdater < handle
       obj.maxModelGenerations = defopts(obj.parsedParams, 'geneECAdaptive_maxModelGenerations', 5);
       obj.startModelGenerations = defopts(obj.parsedParams, 'geneECAdaptive_startModelGenerations', round(obj.maxModelGenerations - obj.minModelGenerations)/2);
       obj.lastModelGenerations = obj.startModelGenerations;
-      % weights for weighted sum of historical error values
-      obj.weights = defopts(obj.parsedParams, 'geneECAdaptive_weights', exp((1:4)/2) / sum(exp((1:4)/2)));
-      % smoothing factor for historical error values
-      obj.errSmoothingFactor = defopts(obj.parsedParams, 'geneECAdaptive_errSmoothingFactor', 0.5);
-      % exponential smoothing of output values
-      obj.updateRate = defopts(obj.parsedParams, 'geneECAdaptive_updateRate', 0.9);
-      % type of aggregation of historical values of RankDiff errors
-      obj.aggregateType = defopts(obj.parsedParams, 'geneECAdaptive_aggregateType', 'weightedSum');
+      % exponential smoothing of error values
+      obj.updateRate = defopts(obj.parsedParams, 'geneECAdaptive_updateRate', 0.40);
+      % for negative updates, use the same rate as positive rate as default;
+      % this default is used also if [] is supplied in experiment definition
+      % for 'updateRateDown'
+      obj.updateRateDown = defopts(obj.parsedParams, 'geneECAdaptive_updateRateDown', obj.updateRate);
       % a transfer function applied to error, such as a sigmoid function
-      obj.transferFun = defopts(obj.parsedParams, 'geneECAdaptive_transferFun', @(x) x);
+      obj.transferFun = defopts(obj.parsedParams, 'geneECAdaptive_transferFun', '@(x) x');
       if ischar(obj.transferFun)
         obj.transferFun = evalin('caller', obj.transferFun);
       end
 
       % lowest and highest error which affect gain util it saturates to 0 or 1
-      obj.lowErrThreshold  = defopts(obj.parsedParams, 'geneECAdaptive_lowErrThreshold', 0.1);
-      obj.highErrThreshold = defopts(obj.parsedParams, 'geneECAdaptive_highErrThreshold', 0.5);
+      obj.lowErrThreshold  = defopts(obj.parsedParams, 'geneECAdaptive_lowErrThreshold', 0.10);
+      obj.highErrThreshold = defopts(obj.parsedParams, 'geneECAdaptive_highErrThreshold', 0.50);
+
+      obj.defaultErr = defopts(obj.parsedParams, 'geneECAdaptive_defaultErr', 0.20);
 
       obj.historyErr = [];
-      obj.historyAggErr = [];
+      obj.historySmoothedErr = [];
       obj.origGenerations = 1;
       obj.lastUpdateIteration = 0;
-      obj.plotDebug = 0;
     end
   end
 end

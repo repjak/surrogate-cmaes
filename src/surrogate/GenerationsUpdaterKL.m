@@ -73,6 +73,7 @@ classdef GenerationsUpdaterKL < GenerationsUpdater
       obj.normDiscountIterations = defopts(obj.parsedParams, 'geneECAdaptive_normDiscountIterations', 5);
       obj.lowErrThreshold  = defopts(obj.parsedParams, 'geneECAdaptive_lowErrThreshold', 0.1);
       obj.highErrThreshold = defopts(obj.parsedParams, 'geneECAdaptive_highErrThreshold', 0.95);
+      obj.defaultErr = defopts(obj.parsedParams, 'geneECAdaptive_defaultErr', 0.50);
       obj.cmConstants = struct();
       obj.lastMu = NaN;
       obj.lastLambda = NaN;
