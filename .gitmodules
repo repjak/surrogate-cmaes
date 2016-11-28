@@ -1,0 +1,3 @@
+[submodule "src/vendor/plsorgp"]
+	path = src/vendor/plsorgp
+	url = https://github.com/repjak/plsorgp
