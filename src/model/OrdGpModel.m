@@ -29,7 +29,7 @@ classdef OrdGpModel < Model
   methods (Access = public)
     function obj = OrdGpModel(modelOptions, xMean)
       % constructor
-      assert(size(xMean,1) == 1, 'GpModel (constructor): xMean is not a row-vector.');
+      assert(size(xMean,1) == 1, 'OrdGpModel (constructor): xMean is not a row-vector.');
 
       % modelOpts structure
       if (isempty(modelOptions))
@@ -81,7 +81,7 @@ classdef OrdGpModel < Model
       nData = 3 * obj.dim;
     end
 
-    function obj = trainModel(obj, X, y, xMean, generation)
+    function obj = trainModel(obj, X, y, xMean, ~)
       assert(size(xMean,1) == 1, '  GpModel.train(): xMean is not a row-vector.');
 
       obj.dataset.X = X;
@@ -113,7 +113,7 @@ classdef OrdGpModel < Model
       };
 
       if (isfield(obj.hyp, 'ordreg') && ~isempty(obj.hyp.ordreg))
-        ordgOpts(end+1:end+2) = {'PlsorParameters', obj.hyp.ordreg};
+        ordgpOpts(end+1:end+2) = {'PlsorParameters', obj.hyp.ordreg};
       end
 
       if (isfield(obj.hyp, 'cov') && ~isempty(obj.hyp.cov))
@@ -125,7 +125,7 @@ classdef OrdGpModel < Model
       end
 
       tic;
-      obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, y, ordgpOpts);
+      obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrain, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
 
       if (obj.logModel)
@@ -139,7 +139,7 @@ classdef OrdGpModel < Model
       % @ypred      -- predicted response
       % @ysd        -- predicted standard deviation
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
-        [~, yprob, ymu, ysd2] = ordgpMdl.predict(X);
+        [~, yprob, ymu, ysd2] = obj.ordgpMdl.predict(X);
         ysd = sqrt(ysd2);
 
         % un-normalize in the f-space
