@@ -1,4 +1,19 @@
-classdef ordgpMdlModel < Model
+classdef OrdGpModel < Model
+  properties    % derived from abstract class "Model"
+    dim                  % dimension of the input space X (determined from x_mean)
+    trainGeneration      % # of the generation when the model was built
+    trainMean            % mean of the generation when the model was trained
+    trainSigma           % sigma of the generation when the model was trained
+    trainBD              % BD of the generation when the model was trained
+    dataset              % .X and .y
+    useShift             % whether use shift during generationUpdate()
+    shiftMean            % vector of the shift in the X-space
+    shiftY               % shift in the f-space
+    predictionType       % type of prediction (f-values, PoI, EI)
+    transformCoordinates % whether use transformation in the X-space
+    stateVariables       % variables needed for sampling new points as CMA-ES do
+  end
+
   properties (Access = protected)
     stdY                  % standard deviation of Y in training set, for output normalization
     covFcn                % an identifier of covariance function
@@ -12,7 +27,7 @@ classdef ordgpMdlModel < Model
   end
 
   methods (Access = public)
-    function obj = ordgpMdlModel(modelOptions, xMean)
+    function obj = OrdGpModel(modelOptions, xMean)
       % constructor
       assert(size(xMean,1) == 1, 'GpModel (constructor): xMean is not a row-vector.');
 
@@ -30,7 +45,7 @@ classdef ordgpMdlModel < Model
 
       % fitting depends on fmincon
       if (~license('checkout', 'optimization_toolbox'))
-        warning('ordgpMdlModel: Optimization Toolbox license not available. Model cannot be trained');
+        warning('OrdGpModel: Optimization Toolbox license not available. Model cannot be trained');
       end
 
       obj.covFcn = defopts(obj.options, 'covfcn', 'ardsquaredexponential');
@@ -56,7 +71,7 @@ classdef ordgpMdlModel < Model
       obj.options.prediction = defopts(obj.options, 'prediction', 'avgord');
 
       obj.ordgpMdl = [];
-      obj.logModel = 0;
+      obj.logModel = 1;
     end
 
     function nData = getNTrainData(obj)
@@ -75,7 +90,7 @@ classdef ordgpMdlModel < Model
       % normalize y if specified or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
       if (~obj.options.normalizeY ...
-          && (max(y) - min(y)) > 1e4))
+          && (max(y) - min(y)) > 1e4)
         fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
         obj.options.normalizeY = true;
       end
@@ -89,26 +104,29 @@ classdef ordgpMdlModel < Model
         yTrain = y;
       end
 
+      yTrain = binning(yTrain, 5);
+
       ordgpOpts = { ...
         'FitMethod', 'exact', ...
-        'PredictMethod', 'exact', ...
         'Standardize', obj.options.normalizeX, ...
         'KernelFunction', obj.options.covFcn
       };
 
-      if (isfield(obj.hyp.ordreg) && ~isempty(obj.hyp.ordreg))
+      if (isfield(obj.hyp, 'ordreg') && ~isempty(obj.hyp.ordreg))
         ordgOpts(end+1:end+2) = {'PlsorParameters', obj.hyp.ordreg};
       end
 
-      if (isfield(obj.hyp.cov) && ~isempty(obj.hyp.cov))
+      if (isfield(obj.hyp, 'cov') && ~isempty(obj.hyp.cov))
         ordgpOpts(end+1:end+2) = {'KernelParameters', obj.hyp.cov};
       end
 
-      if (isfield(obj.hyp.lik) && ~isempty(obj.hyp.lik))
+      if (isfield(obj.hyp, 'lik') && ~isempty(obj.hyp.lik))
         ordgpOpts(end+1:end+2) = {'Sigma2', obj.hyp.lik};
       end
 
+      tic;
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, y, ordgpOpts);
+      fprintf('Toc: %.2f\n', toc);
 
       if (obj.logModel)
         disp('Model:');
@@ -125,7 +143,7 @@ classdef ordgpMdlModel < Model
         ysd = sqrt(ysd2);
 
         % un-normalize in the f-space
-        ypred = ypred * obj.stdY + obj.shiftY;
+        ymu = ymu * obj.stdY + obj.shiftY;
         ysd = ysd * obj.stdY;
 
         % number of outputs
