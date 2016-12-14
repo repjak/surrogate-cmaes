@@ -81,9 +81,9 @@ classdef OrdGpModel < Model
       nData = 3 * obj.dim;
     end
 
-    function obj = trainModel(obj, X, y, xMean, ~)
-      assert(size(xMean,1) == 1, '  GpModel.train(): xMean is not a row-vector.');
-
+    function obj = trainModel(obj, X, y, xMean, generation)
+      assert(size(xMean,1) == 1, '  OrdGpModel.train(): xMean is not a row-vector.');
+      obj.trainMean = xMean;
       obj.dataset.X = X;
       obj.dataset.y = y;
 
@@ -103,9 +103,11 @@ classdef OrdGpModel < Model
         obj.stdY = 1;
         yTrain = y;
       end
-
+      
+      % perform binning
       yTrain = binning(yTrain, 5);
 
+      % ordgp options
       ordgpOpts = { ...
         'FitMethod', 'exact', ...
         'Standardize', obj.options.normalizeX, ...
@@ -125,8 +127,11 @@ classdef OrdGpModel < Model
       end
 
       tic;
+      % train ordinal regression model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrain, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
+      
+      obj.trainGeneration = generation;
 
       if (obj.logModel)
         disp('Model:');
@@ -134,17 +139,18 @@ classdef OrdGpModel < Model
       end
     end
 
-    function [ypred, ysd] = modelPredict(obj, X)
+    function [ypred, ysd2] = modelPredict(obj, X)
       % make prediction
       % @ypred      -- predicted response
       % @ysd        -- predicted standard deviation
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
         [~, yprob, ymu, ysd2] = obj.ordgpMdl.predict(X);
-        ysd = sqrt(ysd2);
+        % ysd = sqrt(ysd2);
 
         % un-normalize in the f-space
         ymu = ymu * obj.stdY + obj.shiftY;
-        ysd = ysd * obj.stdY;
+        % TODO: correct ysd2
+        % ysd = ysd * obj.stdY;
 
         % number of outputs
         n = size(yprob, 1);
@@ -155,21 +161,21 @@ classdef OrdGpModel < Model
         if (n <= 0)
           warning('Empty prediction.');
           ypred = [];
-          ysd = [];
+          ysd2 = [];
           return;
         end
 
         switch obj.options.prediction
-        case 'avgord'
-          ypred = sum(bsxfun(@times, yprob, 1:r), 2) ./ n;
-        case 'metric'
-          ypred = ymu;
-        otherwise
-          ypred = ymu;
+          case 'avgord'
+            ypred = sum(bsxfun(@times, yprob, 1:r), 2) ./ n;
+          case 'metric'
+            ypred = ymu;
+          otherwise
+            ypred = ymu;
         end
       else
         ypred = [];
-        ysd = [];
+        ysd2 = [];
         warning('Model not trained');
       end
     end
