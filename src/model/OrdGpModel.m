@@ -68,7 +68,7 @@ classdef OrdGpModel < Model
       %
       % * avgord - average of ordinal responses weighted by predicted probabilities
       % * metric - metric predictions of the latent variable, i.e. w/o mapping into ordinal values
-      obj.options.prediction = defopts(obj.options, 'prediction', 'avgord');
+      obj.options.prediction = defopts(obj.options, 'prediction', 'metric');
 
       obj.ordgpMdl = [];
       obj.logModel = 1;
@@ -86,6 +86,7 @@ classdef OrdGpModel < Model
       obj.trainMean = xMean;
       obj.dataset.X = X;
       obj.dataset.y = y;
+      nBins = obj.stateVariables.lambda;
 
       % normalize y if specified or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
@@ -105,7 +106,7 @@ classdef OrdGpModel < Model
       end
       
       % perform binning
-      yTrain = binning(yTrain, 5);
+      yTrain = binning(yTrain, nBins, 'uniform');
 
       % ordgp options
       ordgpOpts = { ...
@@ -131,7 +132,11 @@ classdef OrdGpModel < Model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrain, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
       
-      obj.trainGeneration = generation;
+      if ~isinf(obj.ordgpMdl.MinimumNLP)
+        obj.trainGeneration = generation;
+      end
+      
+      % TODO: predict training points and check the results
 
       if (obj.logModel)
         disp('Model:');
@@ -140,17 +145,16 @@ classdef OrdGpModel < Model
     end
 
     function [ypred, ysd2] = modelPredict(obj, X)
-      % make prediction
+      % predicts the function values in new points X
       % @ypred      -- predicted response
-      % @ysd        -- predicted standard deviation
+      % @ysd2       -- predicted variance
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
-        [~, yprob, ymu, ysd2] = obj.ordgpMdl.predict(X);
-        % ysd = sqrt(ysd2);
+        [~, yprob, ymu, gp_ysd2] = obj.ordgpMdl.predict(X);
 
         % un-normalize in the f-space
         ymu = ymu * obj.stdY + obj.shiftY;
-        % TODO: correct ysd2
-        % ysd = ysd * obj.stdY;
+        ysd2 = gp_ysd2 * (obj.stdY)^2;
+%         ysd2 = gp_ysd2;
 
         % number of outputs
         n = size(yprob, 1);

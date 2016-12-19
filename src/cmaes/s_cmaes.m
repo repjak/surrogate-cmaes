@@ -1015,15 +1015,15 @@ while isempty(stopflag)
     if bnd.iniphase 
       if any(ti) 
         bnd.weights(find(bnd.isbounded)) = 2.0002 * median(bnd.dfithist);
-	if bnd.flgscale == 0 % scale only initial weights then
-	  dd = diagC; 
-	  idx = find(bnd.isbounded); 
-	  dd = dd(idx) / mean(dd); %  remove mean scaling
-	  bnd.weights(idx) = bnd.weights(idx) ./ dd; 
-	end
-	if bnd.validfitval && countiter > 2
-          bnd.iniphase = 0;
-	end
+        if bnd.flgscale == 0 % scale only initial weights then
+          dd = diagC; 
+          idx = find(bnd.isbounded); 
+          dd = dd(idx) / mean(dd); %  remove mean scaling
+          bnd.weights(idx) = bnd.weights(idx) ./ dd; 
+        end
+        if bnd.validfitval && countiter > 2
+                bnd.iniphase = 0;
+        end
       end
     end
 
