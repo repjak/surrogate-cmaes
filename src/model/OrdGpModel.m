@@ -87,6 +87,7 @@ classdef OrdGpModel < Model
       obj.dataset.X = X;
       obj.dataset.y = y;
       nBins = obj.stateVariables.lambda;
+      nTrain = size(obj.dataset.X, 1);
 
       % normalize y if specified or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
@@ -132,11 +133,13 @@ classdef OrdGpModel < Model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrain, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
       
-      if ~isinf(obj.ordgpMdl.MinimumNLP)
+      % fitness error
+      obj.fitErr = sum(abs(obj.ordgpMdl.predict(obj.dataset.X) - yTrain)) / nTrain;
+      fprintf('FitErr: %0.6f\n', obj.fitErr)
+      
+      if obj.ordgpMdl.MinimumNLP < Inf && obj.fitErr <= 1
         obj.trainGeneration = generation;
       end
-      
-      % TODO: predict training points and check the results
 
       if (obj.logModel)
         disp('Model:');
