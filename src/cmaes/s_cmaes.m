@@ -1433,7 +1433,7 @@ while isempty(stopflag)
   if all(xmean == xmean + tmp)
     i = 1+floor(mod(countiter,N));
     if stopOnWarnings
-	stopflag(end+1) = {'warnnoeffectaxis'};
+    	stopflag(end+1) = {'warnnoeffectaxis'};
     else
       warning(['Iteration ' num2str(countiter) ...
 	       ': main axis standard deviation ' ...

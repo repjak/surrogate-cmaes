@@ -19,11 +19,12 @@ classdef OrdGpModel < Model
     covFcn                % an identifier of covariance function
     hyp                   % a struct of hyperparameters with fields 'cov', 'ordreg', 'lik'
     options
-    fitErr
+    fitErr                % fitting error
     ordgpMdl              % an OrdRegressionGP object
     covFcnType = {'squaredexponential', ...
-      'ardsquaredexponential'} % covariance functions accepted by OrdRegressionGP
+                  'ardsquaredexponential'} % covariance functions accepted by OrdRegressionGP
     logModel              % display model object after each training
+    binEdges              % edges of binning
   end
 
   methods (Access = public)
@@ -86,7 +87,7 @@ classdef OrdGpModel < Model
       obj.trainMean = xMean;
       obj.dataset.X = X;
       obj.dataset.y = y;
-      nBins = obj.stateVariables.lambda;
+      nBins = obj.stateVariables.mu + 1;
       nTrain = size(obj.dataset.X, 1);
 
       % normalize y if specified or if large y-scale
@@ -107,7 +108,7 @@ classdef OrdGpModel < Model
       end
       
       % perform binning
-      yTrain = binning(yTrain, nBins, 'uniform');
+      [yTrain, obj.binEdges] = binning(yTrain, nBins, 'uniform');
 
       % ordgp options
       ordgpOpts = { ...
@@ -154,10 +155,13 @@ classdef OrdGpModel < Model
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
         [~, yprob, ymu, gp_ysd2] = obj.ordgpMdl.predict(X);
 
+        fprintf('ymu: %0.4f\n', ymu)
         % un-normalize in the f-space
-        ymu = ymu * obj.stdY + obj.shiftY;
-        ysd2 = gp_ysd2 * (obj.stdY)^2;
-%         ysd2 = gp_ysd2;
+%         ymu = ymu * obj.stdY + obj.shiftY;
+%         ysd2 = gp_ysd2 * (obj.stdY)^2;
+        ysd2 = gp_ysd2;
+        fprintf('fbest: %0.4f\n', min(obj.dataset.y))
+        fprintf('ymu: %0.4f\n', ymu)
 
         % number of outputs
         n = size(yprob, 1);
@@ -171,9 +175,16 @@ classdef OrdGpModel < Model
           ysd2 = [];
           return;
         end
-
+        
+        % prediction correction using original binning edges
+%         newEdges = [obj.binEdges(1) obj.binEdges(2:end-1) obj.binEdges(end)];
+%         ymu_int = floor(ymu + 1/2);
+%         ymu_rem = mod(ymu + 1/2, 1);
+%         ymu = (obj.binEdges(ymu_int + 1) - obj.binEdges(ymu_int)).*ymu_rem + obj.binEdges(ymu_int);
+        
         switch obj.options.prediction
           case 'avgord'
+            % TODO: fix equation
             ypred = sum(bsxfun(@times, yprob, 1:r), 2) ./ n;
           case 'metric'
             ypred = ymu;
