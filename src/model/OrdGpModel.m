@@ -92,20 +92,20 @@ classdef OrdGpModel < Model
 
       % normalize y if specified or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
-      if (~obj.options.normalizeY ...
-          && (max(y) - min(y)) > 1e4)
-        fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
-        obj.options.normalizeY = true;
-      end
-      if (obj.options.normalizeY)
-        obj.shiftY = mean(y);
-        obj.stdY = std(y);
-        yTrain = (y - obj.shiftY) / obj.stdY;
-      else
+%       if (~obj.options.normalizeY ...
+%           && (max(y) - min(y)) > 1e4)
+%         fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
+%         obj.options.normalizeY = true;
+%       end
+%       if (obj.options.normalizeY)
+%         obj.shiftY = mean(y);
+%         obj.stdY = std(y);
+%         yTrain = (y - obj.shiftY) / obj.stdY;
+%       else
         obj.shiftY = 0;
         obj.stdY = 1;
         yTrain = y;
-      end
+%       end
       
       % perform binning
       [yTrain, obj.binEdges] = binning(yTrain, nBins, 'uniform');
@@ -155,13 +155,10 @@ classdef OrdGpModel < Model
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
         [~, yprob, ymu, gp_ysd2] = obj.ordgpMdl.predict(X);
 
-        fprintf('ymu: %0.4f\n', ymu)
         % un-normalize in the f-space
 %         ymu = ymu * obj.stdY + obj.shiftY;
 %         ysd2 = gp_ysd2 * (obj.stdY)^2;
         ysd2 = gp_ysd2;
-        fprintf('fbest: %0.4f\n', min(obj.dataset.y))
-        fprintf('ymu: %0.4f\n', ymu)
 
         % number of outputs
         n = size(yprob, 1);
@@ -177,10 +174,11 @@ classdef OrdGpModel < Model
         end
         
         % prediction correction using original binning edges
-%         newEdges = [obj.binEdges(1) obj.binEdges(2:end-1) obj.binEdges(end)];
-%         ymu_int = floor(ymu + 1/2);
-%         ymu_rem = mod(ymu + 1/2, 1);
-%         ymu = (obj.binEdges(ymu_int + 1) - obj.binEdges(ymu_int)).*ymu_rem + obj.binEdges(ymu_int);
+        newEdges = [min(obj.dataset.y) obj.binEdges(2:end-1) max(obj.dataset.y)]';
+        % find apropriate index in binning edges
+        ymu_int = min(max(1, floor(ymu + 1/2)), length(newEdges) - 1);
+        ymu_rem = max(0, ymu - ymu_int + 1/2);
+        ymu = (newEdges(ymu_int + 1) - newEdges(ymu_int)).*ymu_rem + newEdges(ymu_int);
         
         switch obj.options.prediction
           case 'avgord'
