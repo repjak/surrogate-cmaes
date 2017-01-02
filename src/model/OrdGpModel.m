@@ -108,7 +108,7 @@ classdef OrdGpModel < Model
 %       end
       
       % perform binning
-      [yTrain, obj.binEdges] = binning(yTrain, nBins, 'uniform');
+      [yTrain, obj.binEdges] = binning(yTrain, nBins, 'unip');
 
       % ordgp options
       ordgpOpts = { ...
@@ -142,10 +142,10 @@ classdef OrdGpModel < Model
         obj.trainGeneration = generation;
       end
 
-      if (obj.logModel)
-        disp('Model:');
-        disp(obj.ordgpMdl);
-      end
+%       if (obj.logModel)
+%         disp('Model:');
+%         disp(obj.ordgpMdl);
+%       end
     end
 
     function [ypred, ysd2] = modelPredict(obj, X)
@@ -177,7 +177,9 @@ classdef OrdGpModel < Model
         newEdges = [min(obj.dataset.y) obj.binEdges(2:end-1) max(obj.dataset.y)]';
         % find apropriate index in binning edges
         ymu_int = min(max(1, floor(ymu + 1/2)), length(newEdges) - 1);
-        ymu_rem = max(0, ymu - ymu_int + 1/2);
+        ymu_rem = ymu - ymu_int + 1/2;
+        % scale the first bin according to minimal ymu
+        ymu_rem(ymu < 1/2) = 1/2*(ymu_rem(ymu < 1/2) - min(ymu_rem))/(1/2 - min(ymu_rem));
         ymu = (newEdges(ymu_int + 1) - newEdges(ymu_int)).*ymu_rem + newEdges(ymu_int);
         
         switch obj.options.prediction
@@ -199,6 +201,11 @@ classdef OrdGpModel < Model
     function mdl = getModel(obj)
       % get OrdRegressionGP object
       mdl = obj.ordgpMdl;
+    end
+    
+    function edges = getBinEdges(obj)
+      % get binning edges of model
+      edges = obj.binEdges;
     end
 
   end % methods

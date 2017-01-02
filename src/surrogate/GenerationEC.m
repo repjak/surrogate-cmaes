@@ -198,7 +198,7 @@ classdef GenerationEC < EvolutionControl & Observable
         % DEBUG: print and save the statistics about the currently
         % trained obj.model on testing data (RMSE and Kendall's correlation)
         if (isTrained)
-          fprintf('  model trained on %d points, train ', length(y));
+          fprintf('  model trained on %d points\n  train ', length(y));
           surrogateStats = getModelStatistics(obj.model, cmaesState, surrogateOpts, sampleOpts, counteval);
         end
       else
