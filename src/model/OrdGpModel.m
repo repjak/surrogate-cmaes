@@ -50,9 +50,15 @@ classdef OrdGpModel < Model
       end
 
       obj.covFcn = defopts(obj.options, 'covfcn', 'ardsquaredexponential');
-      obj.hyp.ordreg = defopts(obj.options.hyp, 'ordreg', []);
-      obj.hyp.cov = defopts(obj.options.hyp, 'cov', []);
-      obj.hyp.lik = defopts(obj.options.hyp, 'lik', []);
+      if isfield(obj.options, 'hyp')
+        obj.hyp.ordreg = defopts(obj.options.hyp, 'ordreg', []);
+        obj.hyp.cov = defopts(obj.options.hyp, 'cov', []);
+        obj.hyp.lik = defopts(obj.options.hyp, 'lik', []);
+      else
+        obj.hyp.ordreg = [];
+        obj.hyp.cov = [];
+        obj.hyp.lik = [];
+      end
 
       if (~any(ismember(obj.covFcn, obj.covFcnType)))
         % a function handle
@@ -69,10 +75,14 @@ classdef OrdGpModel < Model
       %
       % * avgord - average of ordinal responses weighted by predicted probabilities
       % * metric - metric predictions of the latent variable, i.e. w/o mapping into ordinal values
-      obj.options.prediction = defopts(obj.options, 'prediction', 'metric');
+      obj.options.prediction = defopts(obj.options, 'prediction', 'avgord');
+      obj.options.binning = defopts(obj.options, 'binning', 'unipoints');
+      obj.options.nBins = defopts(obj.options, 'nBins', 'mu + 1');
 
       obj.ordgpMdl = [];
       obj.logModel = 1;
+      obj.fitErr.mzoe = [];
+      obj.fitErr.mae = [];
     end
 
     function nData = getNTrainData(obj)
@@ -87,28 +97,31 @@ classdef OrdGpModel < Model
       obj.trainMean = xMean;
       obj.dataset.X = X;
       obj.dataset.y = y;
-      nBins = obj.stateVariables.mu + 1;
+      
+      mu = obj.stateVariables.mu;
+      lambda = obj.stateVariables.lambda;
+      nBins = myeval(obj.options.nBins);
       nTrain = size(obj.dataset.X, 1);
 
       % normalize y if specified or if large y-scale
-      % (at least for CMA-ES hyperparameter optimization)
-%       if (~obj.options.normalizeY ...
-%           && (max(y) - min(y)) > 1e4)
-%         fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
-%         obj.options.normalizeY = true;
-%       end
-%       if (obj.options.normalizeY)
-%         obj.shiftY = mean(y);
-%         obj.stdY = std(y);
-%         yTrain = (y - obj.shiftY) / obj.stdY;
-%       else
+      % (at least for binning)
+      if (~obj.options.normalizeY ...
+          && (max(y) - min(y)) > 1e4)
+        fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
+        obj.options.normalizeY = true;
+      end
+      if (obj.options.normalizeY)
+        obj.shiftY = mean(y);
+        obj.stdY = std(y);
+        yTrain = (y - obj.shiftY) / obj.stdY;
+      else
         obj.shiftY = 0;
         obj.stdY = 1;
         yTrain = y;
-%       end
+      end
       
-      % perform binning
-      [yTrain, obj.binEdges] = binning(yTrain, nBins, 'unip');
+      % perform binning of fitness logarithm
+      [yTrain, obj.binEdges] = binning(yTrain, nBins, obj.options.binning);
 
       % ordgp options
       ordgpOpts = { ...
@@ -119,6 +132,11 @@ classdef OrdGpModel < Model
 
       if (isfield(obj.hyp, 'ordreg') && ~isempty(obj.hyp.ordreg))
         ordgpOpts(end+1:end+2) = {'PlsorParameters', obj.hyp.ordreg};
+      % else 
+      %  alpha = 1;
+      %  beta1 = obj.binEdges(2);
+      %  delta = diff(obj.binEdges(2:end-1));
+      %  ordgpOpts(end+1:end+2) = {'PlsorParameters', [alpha, beta1, delta]};
       end
 
       if (isfield(obj.hyp, 'cov') && ~isempty(obj.hyp.cov))
@@ -134,11 +152,14 @@ classdef OrdGpModel < Model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrain, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
       
-      % fitness error
-      obj.fitErr = sum(abs(obj.ordgpMdl.predict(obj.dataset.X) - yTrain)) / nTrain;
-      fprintf('FitErr: %0.6f\n', obj.fitErr)
+      [yTrainPredict, ~, ~, ~, yTrainPredict_exp] = obj.ordgpMdl.predict(obj.dataset.X);
+      % mean absolute error
+      obj.fitErr.mae = sum(abs(yTrainPredict_exp - yTrain)) / nTrain;
+      % mean zero-one error
+      obj.fitErr.mzoe = sum(yTrainPredict ~= yTrain) / nTrain;
+      fprintf('MAE: %0.4f  MZOE: %0.4f\n', obj.fitErr.mae, obj.fitErr.mzoe)
       
-      if obj.ordgpMdl.MinimumNLP < Inf && obj.fitErr <= 1
+      if (obj.ordgpMdl.MinimumNLP < Inf) && (obj.fitErr.mae <= nBins / 5)
         obj.trainGeneration = generation;
       end
 
@@ -153,7 +174,7 @@ classdef OrdGpModel < Model
       % @ypred      -- predicted response
       % @ysd2       -- predicted variance
       if (strcmpi(class(obj.ordgpMdl), 'OrdRegressionGP'))
-        [~, yprob, ymu, gp_ysd2] = obj.ordgpMdl.predict(X);
+        [~, yprob, ymu, gp_ysd2, y_exp] = obj.ordgpMdl.predict(X);
 
         % un-normalize in the f-space
 %         ymu = ymu * obj.stdY + obj.shiftY;
@@ -163,9 +184,6 @@ classdef OrdGpModel < Model
         % number of outputs
         n = size(yprob, 1);
 
-        % number of ordinal classes
-        r = size(yprob, 2);
-
         if (n <= 0)
           warning('Empty prediction.');
           ypred = [];
@@ -173,24 +191,24 @@ classdef OrdGpModel < Model
           return;
         end
         
-        % prediction correction using original binning edges
-        newEdges = [min(obj.dataset.y) obj.binEdges(2:end-1) max(obj.dataset.y)]';
-        % find apropriate index in binning edges
-        ymu_int = min(max(1, floor(ymu + 1/2)), length(newEdges) - 1);
-        ymu_rem = ymu - ymu_int + 1/2;
-        % scale the first bin according to minimal ymu
-        ymu_rem(ymu < 1/2) = 1/2*(ymu_rem(ymu < 1/2) - min(ymu_rem))/(1/2 - min(ymu_rem));
-        ymu = (newEdges(ymu_int + 1) - newEdges(ymu_int)).*ymu_rem + newEdges(ymu_int);
-        
         switch obj.options.prediction
           case 'avgord'
-            % TODO: fix equation
-            ypred = sum(bsxfun(@times, yprob, 1:r), 2) ./ n;
+            ypred = y_exp;
           case 'metric'
             ypred = ymu;
           otherwise
             ypred = ymu;
         end
+        
+        % prediction correction using original binning edges
+        newEdges = [min(obj.dataset.y), exp(obj.binEdges(2:end-1)), max(obj.dataset.y)]';
+        % find apropriate index in binning edges
+        ymu_int = min(max(1, floor(ypred + 1/2)), length(newEdges) - 1);
+        ymu_rem = ypred - ymu_int + 1/2;
+        % scale the first bin according to minimal ymu
+        ymu_rem(ypred < 1/2) = 1/2*(ymu_rem(ypred < 1/2) - min(ymu_rem))/(1/2 - min(ymu_rem));
+        ypred = (newEdges(ymu_int + 1) - newEdges(ymu_int)).*ymu_rem + newEdges(ymu_int);
+        
       else
         ypred = [];
         ysd2 = [];
@@ -206,6 +224,14 @@ classdef OrdGpModel < Model
     function edges = getBinEdges(obj)
       % get binning edges of model
       edges = obj.binEdges;
+    end
+    
+    function res = myeval(s)
+      if ischar(s)
+        res = evalin('caller', s);
+      else
+        res = s;
+      end
     end
 
   end % methods
