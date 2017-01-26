@@ -20,6 +20,7 @@ classdef OrdGpModel < Model
     hyp                   % a struct of hyperparameters with fields 'cov', 'ordreg', 'lik'
     options
     fitErr                % fitting error
+    trainLikelihood       % negative logarithm of likelihood reached by training process
     ordgpMdl              % an OrdRegressionGP object
     covFcnType = {'squaredexponential', ...
                   'ardsquaredexponential'} % covariance functions accepted by OrdRegressionGP
@@ -71,7 +72,8 @@ classdef OrdGpModel < Model
         end
         obj.covFcn = eval(obj.covFcn);
       end
-
+      
+      % normalize options
       obj.options.normalizeY = defopts(obj.options, 'normalizeY', true);
       obj.options.normalizeX = defopts(obj.options, 'normalizeX', true);
 
@@ -79,7 +81,7 @@ classdef OrdGpModel < Model
       %
       % * avgord - average of ordinal responses weighted by predicted probabilities
       % * metric - metric predictions of the latent variable, i.e. w/o mapping into ordinal values
-      obj.options.prediction = defopts(obj.options, 'prediction', 'metric');
+      obj.options.prediction = defopts(obj.options, 'prediction', 'avgord');
       
       % binning settings
       obj.options.binning = defopts(obj.options, 'binning', 'unipoints');
@@ -93,7 +95,7 @@ classdef OrdGpModel < Model
 
       % the rest of initial values
       obj.ordgpMdl = [];
-      obj.gpMdl = GpModel(modelOptions);
+      obj.trainLikelihood = Inf;
       obj.logModel = 1;
       obj.fitErr.mzoe = [];
       obj.fitErr.mae = [];
@@ -161,18 +163,23 @@ classdef OrdGpModel < Model
       if (isfield(obj.hyp, 'cov') && ~isempty(obj.hyp.cov))
         ordgpOpts(end+1:end+2) = {'KernelParameters', obj.hyp.cov};
       end
+      
+      if (isfield(obj.options, 'covBounds') && ~isempty(obj.options.covBounds))
+        ordgpOpts(end+1:end+2) = {'KernelBounds', obj.options.covBounds};
+      end
 
       if (isfield(obj.hyp, 'lik') && ~isempty(obj.hyp.lik))
         ordgpOpts(end+1:end+2) = {'Sigma2', obj.hyp.lik};
+      end
+      
+      if (isfield(obj.options, 'likBounds') && ~isempty(obj.options.likBounds))
+        ordgpOpts(end+1:end+2) = {'Sigma2Bounds', obj.options.likBounds};
       end
 
       tic;
       % train ordinal regression model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrainBin, ordgpOpts);
       fprintf('Toc: %.2f\n', toc);
-      
-      % train regression model
-      obj.gpMdl = minimize();
       
       % check the model accuracy
       [yTrainPredict, ~, ~, ~, yTrainPredict_exp] = obj.ordgpMdl.predict(obj.dataset.X);
@@ -185,6 +192,7 @@ classdef OrdGpModel < Model
       fprintf('MAE: %0.4f  MAEW: %0.4f  MZOE: %0.4f\n', obj.fitErr.mae, obj.fitErr.maew, obj.fitErr.mzoe)
       
       if (obj.ordgpMdl.MinimumNLP < Inf) % && (obj.fitErr.mae <= nBins / 5)
+        obj.trainLikelihood = obj.ordgpMdl.MinimumNLP;
         obj.trainGeneration = generation;
       end
 
@@ -254,6 +262,16 @@ classdef OrdGpModel < Model
     function edges = getBinEdges(obj)
       % get binning edges of model
       edges = obj.binEdges;
+    end
+    
+    function trainLik = getTrainLikelihood(obj)
+      % get training likelihood
+      trainLik = obj.trainLikelihood;
+    end
+    
+    function opts = getOptions(obj)
+      % get model options
+      opts = obj.options;
     end
     
     function res = myeval(s)
