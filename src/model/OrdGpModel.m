@@ -12,6 +12,9 @@ classdef OrdGpModel < Model
     predictionType       % type of prediction (f-values, PoI, EI)
     transformCoordinates % whether use transformation in the X-space
     stateVariables       % variables needed for sampling new points as CMA-ES do
+    
+    % OrdGpModel specific fields
+    trainLikelihood       % negative logarithm of likelihood reached by training process
   end
 
   properties (Access = protected)
@@ -20,7 +23,6 @@ classdef OrdGpModel < Model
     hyp                   % a struct of hyperparameters with fields 'cov', 'ordreg', 'lik'
     options
     fitErr                % fitting error
-    trainLikelihood       % negative logarithm of likelihood reached by training process
     ordgpMdl              % an OrdRegressionGP object
     covFcnType = {'squaredexponential', ...
                   'ardsquaredexponential'} % covariance functions accepted by OrdRegressionGP
@@ -176,10 +178,10 @@ classdef OrdGpModel < Model
         ordgpOpts(end+1:end+2) = {'Sigma2Bounds', obj.options.likBounds};
       end
 
-      tic;
+      % tic;
       % train ordinal regression model
       obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrainBin, ordgpOpts);
-      fprintf('Toc: %.2f\n', toc);
+      % fprintf('Toc: %.2f\n', toc);
       
       % check the model accuracy
       [yTrainPredict, ~, ~, ~, yTrainPredict_exp] = obj.ordgpMdl.predict(obj.dataset.X);
@@ -189,7 +191,7 @@ classdef OrdGpModel < Model
       obj.fitErr.maew = sum(abs(yTrainPredict_exp - yTrainBin)) / nTrain;
       % mean zero-one error
       obj.fitErr.mzoe = sum(yTrainPredict ~= yTrainBin) / nTrain;
-      fprintf('MAE: %0.4f  MAEW: %0.4f  MZOE: %0.4f\n', obj.fitErr.mae, obj.fitErr.maew, obj.fitErr.mzoe)
+      % fprintf('MAE: %0.4f  MAEW: %0.4f  MZOE: %0.4f\n', obj.fitErr.mae, obj.fitErr.maew, obj.fitErr.mzoe)
       
       if (obj.ordgpMdl.MinimumNLP < Inf) % && (obj.fitErr.mae <= nBins / 5)
         obj.trainLikelihood = obj.ordgpMdl.MinimumNLP;
