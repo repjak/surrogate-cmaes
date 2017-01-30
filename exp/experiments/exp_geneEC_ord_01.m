@@ -8,13 +8,15 @@ bbobParams = { ...
   'functions',          { 2, 3, 6, 8, 13, 17, 21}, ...      % all functions: num2cell(1:24)
   'opt_function',       { @opt_s_cmaes }, ...
   'instances',          { [1:5, 41:50] }, ...    % default is [1:5, 41:50]
-  'maxfunevals',        { '250 * dim' }
+  'maxfunevals',        { '250 * dim' }, ...
+  'resume',             { true }
 };
 
 % Surrogate manager parameters
 
 surrogateParams = { ...
   'evoControl',         { 'generation' }, ...    % 'none', 'individual', 'generation', 'restricted'
+  'observers',          { {'DTScreenStatistics', 'DTFileStatistics', 'DTModelSaver'} },... % logging observers
   'modelType',          { 'ordgp' }, ...               % 'gp', 'rf', 'bbob'
   'evoControlPreSampleSize', { 0 }, ...             % {0.25, 0.5, 0.75}, will be multip. by lambda
   'evoControlIndividualExtension', { [] }, ...      % will be multip. by lambda

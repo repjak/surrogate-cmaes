@@ -8,7 +8,8 @@ bbobParams = { ...
   'functions',          num2cell(1:24), ...      % all functions: num2cell(1:24)
   'opt_function',       { @opt_s_cmaes }, ...
   'instances',          { [1:5, 41:50] }, ...    % default is [1:5, 41:50]
-  'maxfunevals',        { '250 * dim' }
+  'maxfunevals',        { '250 * dim' }, ...
+  'resume',             { true }
 };
 
 % Surrogate manager parameters

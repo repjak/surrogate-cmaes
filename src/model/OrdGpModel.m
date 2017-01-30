@@ -87,7 +87,12 @@ classdef OrdGpModel < Model
       
       % binning settings
       obj.options.binning = defopts(obj.options, 'binning', 'unipoints');
-      obj.options.nBins = defopts(obj.options, 'nBins', 'mu + 1');
+      if strcmp(obj.options.binning, 'none')
+        % binning type 'none' does not need the number of bins
+        obj.options.nBins = defopts(obj.options, 'nBins', 0);
+      else
+        obj.options.nBins = defopts(obj.options, 'nBins', 'mu + 1');
+      end
       % normalize settings
       obj.options.normalizeY = defopts(obj.options, 'normalizeY', true);
 
@@ -107,6 +112,8 @@ classdef OrdGpModel < Model
       % returns the required number of data for training the model
       % TODO: *write this* properly according to dimension and
       %       covariance function set in options
+      %       It should be nBins dependent. However, this value is at this
+      %       moment unknown...
       nData = 3 * obj.dim;
     end
 
