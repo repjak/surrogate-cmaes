@@ -18,9 +18,9 @@ function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
 
   nDatasetsPerInstance = length(ds.trainSetX);
 
-  mse = zeros(nDatasetsPerInstance, 1);
-  kendall = zeros(nDatasetsPerInstance, 1);
-  rde = zeros(nDatasetsPerInstance, 1);
+  mse = NaN(nDatasetsPerInstance, 1);
+  kendall = NaN(nDatasetsPerInstance, 1);
+  rde = NaN(nDatasetsPerInstance, 1);
   model = cell(nDatasetsPerInstance, 1);
   ym = cell(nDatasetsPerInstance, 1);
 
@@ -28,11 +28,13 @@ function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
     m = ModelFactory.createModel(modelType, modelOpts, ds.means{i});
     m = m.train(ds.trainSetX{i}, ds.trainSetY{i}, ds.cmaesStates{i}, ds.sampleOpts);
 
-    ym{i} = m.predict(ds.testSetX{i});
-
-    mse(i) = sum((ym{i} - ds.testSetY{i}).^2) / length(ym{i});
-    kendall(i) = corr(ym{i}, ds.testSetY{i}, 'type', 'kendall');
-    rde(i) = errRankMu(ym{i}, ds.testSetY{i}, floor(length(ym{i})/2));
+    if m.isTrained()
+      ym{i} = m.predict(ds.testSetX{i});
+      % calculate statistics
+      mse(i) = sum((ym{i} - ds.testSetY{i}).^2) / length(ym{i});
+      kendall(i) = corr(ym{i}, ds.testSetY{i}, 'type', 'kendall');
+      rde(i) = errRankMu(ym{i}, ds.testSetY{i}, floor(length(ym{i})/2));
+    end
     
     model{i} = m;
 
