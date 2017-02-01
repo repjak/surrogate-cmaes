@@ -16,7 +16,7 @@ bbobParams = { ...
 
 surrogateParams = { ...
   'evoControl',         { 'doublytrained' }, ...    % 'none', 'individual', 'generation', 'restricted'
-  'observers',          { {'DTScreenStatistics', 'DTFileStatistics', 'DTModelSaver'} },... % logging observers
+  'observers',          { {'DTScreenStatistics', 'DTFileStatistics'} },... % logging observers
   'modelType',          { 'ordgp' }, ...            % 'gp', 'ordgp', 'rf', 'bbob'
   'evoControlPreSampleSize', { 0 }, ...             % {0.25, 0.5, 0.75}, will be multip. by lambda
   'evoControlIndividualExtension', { [] }, ...      % will be multip. by lambda

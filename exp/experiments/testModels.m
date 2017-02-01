@@ -106,11 +106,12 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
         % warn user if the result file will replaced by the new one
         if exist(modelFile, 'file')
           warning('Stop testing if you do not want to rewrite file %s', modelFile)
-        end
+        else
         % test model
         [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data(f, d));
         % save model results
         save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+        end
       end
     end 
   end

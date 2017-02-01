@@ -30,7 +30,7 @@ function ds = modelTestSets(exp_id, fun, dim)
   dataFolder = fullfile(outputFolder, 'defData');
   modelFolder = fullfile(dataFolder, 'defModel');
   datasetName = fullfile(dataFolder, 'defSet');
-  defModelName = fullfile(modelFolder, 'gpModel');
+  defModelName = fullfile(modelFolder, 'defModel');
   
   if ~exist(outputFolder, 'dir')
     mkdir(outputFolder)
