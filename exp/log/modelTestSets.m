@@ -1,28 +1,34 @@
-function ds = modelTestSets(exp_id, fun, dim)
-% ds = modelTestSets(exp_id, fun, dim) creates/loads dataset from 
-% experiment
+function ds = modelTestSets(exp_id, fun, dim, maxEval)
+% ds = modelTestSets(exp_id, fun, dim, maxEval) creates/loads dataset from 
+% experiment.
 %
 % Input:
-%   exp_id - experiment id
-%   fun    - functions to load
-%   dim    - dimensions to load
+%   exp_id  - experiment id
+%   fun     - functions to load
+%   dim     - dimensions to load
+%   maxEval - maximal number of evaluations times dimension to load
 %
 % Output:
-%   ds - loaded data | #fun x #dim struct 
+%   ds - loaded data | #fun x #dim cell-array
+%
+% See Also:
+%   modelTest
 
-  if nargin < 3
-    if nargin < 2
-      if nargin < 1
-        exp_id = 'exp_doubleEC_21_log';
+  if nargin < 4
+    if nargin < 3
+      if nargin < 2
+        if nargin < 1
+          exp_id = 'exp_doubleEC_21_log';
+        end
+        fun = 1;
       end
-      fun = 1;
+      dim = 2;
     end
-    dim = 2;
+    maxEval = 250;
   end
   
+  % default settings
   nDatasetsPerInstance = 10;
-
-  idStart = 1;
 
   % path settings
   experimentPath = fullfile('exp', 'experiments', exp_id);
@@ -32,6 +38,7 @@ function ds = modelTestSets(exp_id, fun, dim)
   datasetName = fullfile(dataFolder, 'defSet');
   defModelName = fullfile(modelFolder, 'defModel');
   
+  % create folders
   if ~exist(outputFolder, 'dir')
     mkdir(outputFolder)
   end
@@ -41,31 +48,57 @@ function ds = modelTestSets(exp_id, fun, dim)
   if ~exist(modelFolder, 'dir')
     mkdir(modelFolder)
   end
+  
+  % check experiment parameters
+  if exist(fullfile(experimentPath, 'scmaes_params.mat'), 'file')
+    exp_par = load(fullfile(experimentPath, 'scmaes_params.mat'));
+    exp_dim = cell2mat(exp_par.bbParamDef(strcmp({exp_par.bbParamDef.name}, 'dimensions')).values);
+    exp_fun = cell2mat(exp_par.bbParamDef(strcmp({exp_par.bbParamDef.name}, 'functions')).values);
+  else
+    warning('No scmaes_params.mat found in %s directory. Using default fun and dim settings.', experimentPath)
+    exp_dim = 2;
+    exp_fun = 1;
+  end
+  
+  % check fun and dim values
+  inExpFun = ismember(fun, exp_fun);
+  inExpDim = ismember(dim, exp_dim);
+  if ~all(inExpFun)
+    warning('Functions %s are not in experiment %s. Removing from loading.', num2str(fun(~inExpFun), '%d '), exp_id);
+    fun = fun(inExpFun);
+  end
+  if ~all(inExpDim)
+    warning('Dimensions %s are not in experiment %s. Removing from loading.', num2str(dim(~inExpDim), '%d '), exp_id);
+    dim = dim(inExpDim);
+  end
 
   nFun = length(fun);
   nDim = length(dim);
+  ds = cell(nFun, nDim);
   
   % dimension loop
   for d = 1:nDim
+    d_exp = find(dim(d) == exp_dim);
     % function loop
     for f = 1:nFun
-      %TODO: fix id according to dimension
-      id = idStart + f - 1;
+      f_exp = find(fun(f) == exp_fun);
+      id = (d_exp-1)*length(exp_fun) + f_exp;
       fprintf('#### f%d in %dD ####\n', fun(f), dim(d));
 
-      ds(f,d) = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id);
-      
-      modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
-      
-      if ~exist(modelFile, 'file')
-
-        scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
-        load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
-        
-        [mse, kendall, rde, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds);
-        
-        % save model results
-        save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+      % load dataset from instance
+      ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+      % succesfully loaded
+      if isstruct(ds_actual)
+        ds{f, d} = ds_actual;            
+        % compute default models if they do not exist
+        modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
+  %       if ~exist(modelFile, 'file')
+          scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
+          load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
+          [mse, kendall, rde, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
+          % save model results
+          save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+  %       end
       end
       
     % function loop end  

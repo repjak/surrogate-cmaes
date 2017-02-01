@@ -8,7 +8,7 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
 % Input:
 %   modelType    - type of model (from ECFactory) | string
 %   modelOptions - model options to test | struct (cell-array of struct)
-%   dataset      - data for testing | structure array
+%   dataset      - data for testing | cell-array or string
 %   func         - functions to test | double
 %   dims         - dimensions to test | double
 %
@@ -50,7 +50,7 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
   if ischar(dataset)
     assert(exist(dataset, 'file')==2, 'Dataset %s does not exist', dataset)
   else
-    assert(isstruct(dataset), 'Dataset has to be string or structure')
+    assert(iscell(dataset), 'Dataset has to be string or cell')
   end
   assert(isnumeric(func), '''func'' has to be integer')
   assert(isnumeric(dims), '''dims'' has to be integer')
@@ -97,20 +97,23 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
     dim = dims(d);
     % function loop
     for f = 1:nFunc;
-      fun = func(f);    
-      % model loop
-      for m = 1:nModel
-        fprintf('*******************  Fun: %d  Dim: %d  Model: %d  *******************\n', fun, dim, m)
-        
-        modelFile = fullfile(modelFolder{m}, sprintf('%s_f%d_%dD.mat', modelName{m}, fun, dim));
-        % warn user if the result file will replaced by the new one
-        if exist(modelFile, 'file')
-          warning('Stop testing if you do not want to rewrite file %s', modelFile)
-        else
-        % test model
-        [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data(f, d));
-        % save model results
-        save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+      fun = func(f);
+      if ~isempty(data{f, d})
+        % model loop
+        for m = 1:nModel
+          fprintf('*******************  Fun: %d  Dim: %d  Model: %d  *******************\n', fun, dim, m)
+
+          modelFile = fullfile(modelFolder{m}, sprintf('%s_f%d_%dD.mat', modelName{m}, fun, dim));
+          % warn user if the result file will replaced by the new one
+          if exist(modelFile, 'file')
+            warning('Stop testing if you do not want to rewrite file %s', modelFile)
+          end
+%           else
+          % test model
+          [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
+          % save model results
+          save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+%           end
         end
       end
     end 

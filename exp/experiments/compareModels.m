@@ -96,7 +96,9 @@ function dispResults(stat, func, dims)
     for f = 1:length(func)
       fprintf(' f%02d ', func(f))
       for m = 1:size(stat, 1)
-        if stat(m, f, d) < 0
+        if isnan(stat(m, f, d))
+          fprintf('    ---  ')
+        elseif stat(m, f, d) < 0
           fprintf('  %0.3f ', stat(m, f, d))
         else
           fprintf('%s%0.3f ', ones(1, 3-max(0, floor(log10(stat(m, f, d)))))*' ', stat(m, f, d))

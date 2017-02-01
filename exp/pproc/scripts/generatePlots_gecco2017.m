@@ -2,8 +2,9 @@
 % ordgp model testing
 
 % settings
-func = 1;
-dims = 2;
+func = (1:24);
+dims = [2, 5, 10, 20];
+maxEvals = 100;
 
 % path settings
 defFolder = fullfile('exp', 'experiments', 'model');
@@ -15,8 +16,8 @@ defModelOptions.predictionType = 'sd2';
 defModelOptions.trainAlgorithm = 'fmincon';
 defModelOptions.covFcn = '{@covMaterniso, 5}';
 defModelOptions.normalizeY = true;
-defModelOptions.hyp.lik = log(1);
-defModelOptions.hyp.cov = log([0.05; 0.2]);
+defModelOptions.hyp.lik = log(0.01);
+defModelOptions.hyp.cov = log([0.5; 2]);
 
 % test model options
 modelSet = defModelOptions;
@@ -32,7 +33,7 @@ modelRest = combineFieldValues(modelSet);
 modelOptions = [modelOptions; modelRest];
 
 %% create testing dataset
-ds = modelTestSets('exp_doubleEC_21_log', func, dims);
+ds = modelTestSets('exp_doubleEC_21_log', func, dims, maxEvals);
 
 %% test chosen models
 modelFolders = testModels('ordgp', modelOptions, ds, func, dims);

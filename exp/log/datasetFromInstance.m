@@ -1,4 +1,4 @@
-function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, id)
+function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, id, maxFunEvals)
 %DATASETFROMINSTANCE - generates datasets for offline model tunning
 %
 % Generates datasets for offline model tunning from the file with 
@@ -14,18 +14,37 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   % dim = 2;
   % id = 1;
 
+  if nargin < 6
+    if nargin < 1
+      help datasetFromInstance
+      return
+    end
+    maxFunEvals = 250;
+  end
+  
   experimentPath = [pwd '/exp/experiments/' exp_id];
 
   % load data from files
   savedModelsFile = sprintf('%s/bbob_output/%s_modellog_%d_%dD_%d.mat', experimentPath, exp_id, fun, dim, id);
-  load(savedModelsFile, 'models');
   scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun, dim, id);
-  load(scmaesOutFile, 'cmaes_out', 'exp_settings');
+  if exist(savedModelsFile, 'file') && exist(scmaesOutFile, 'file')
+    MF = load(savedModelsFile, 'models');
+    models = MF.models;
+    SF = load(scmaesOutFile, 'cmaes_out', 'exp_settings');
+    cmaes_out = SF.cmaes_out;
+    exp_settings = SF.exp_settings;
+  else
+    warning('Model file or scmaes output file is missing in f%d %dD (id %d).', fun, dim, id)
+    dataset = {};
+    return
+  end
 
   % BBOB fitness initialization
   fgeneric('initialize', exp_settings.bbob_function, exp_settings.instances(1), ['/tmp/bbob_output/']);
 
-  nGenerations = length(models);
+  % find maximal evaluation generation
+  maxGener = find(cmaes_out{1}{1}.origEvaled, maxFunEvals*dim, 'first');
+  nGenerations = cmaes_out{1}{1}.generations(maxGener(end));
   gens = floor(linspace(0, nGenerations-1, nDatasetsPerInstance+1));
   gens(1) = [];
   cmo = cmaes_out{1}{1};
