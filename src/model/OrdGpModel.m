@@ -198,7 +198,13 @@ classdef OrdGpModel < Model
 
       % tic;
       % train ordinal regression model
-      obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrainBin, ordgpOpts);
+      try
+        obj.ordgpMdl = OrdRegressionGP(obj.dataset.X, yTrainBin, ordgpOpts);
+      catch err
+        fprintf(2, 'OrdGpModel.train() ERROR: OrdRegressionGP() ended with an exception: %s\n', err.message);
+        obj.trainGeneration = -1;
+        return
+      end
       % fprintf('Toc: %.2f\n', toc);
       
       % check the model accuracy
