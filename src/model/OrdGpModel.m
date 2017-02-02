@@ -1,7 +1,7 @@
 classdef OrdGpModel < Model
   properties    % derived from abstract class "Model"
     dim                  % dimension of the input space X (determined from x_mean)
-    trainGeneration      % # of the generation when the model was built
+    trainGeneration = -1 % # of the generation when the model was built
     trainMean            % mean of the generation when the model was trained
     trainSigma           % sigma of the generation when the model was trained
     trainBD              % BD of the generation when the model was trained
@@ -123,6 +123,17 @@ classdef OrdGpModel < Model
       obj.dataset.X = X;
       obj.dataset.y = y;
       
+      % check the training data
+      if ( size(X, 1) < obj.getNTrainData ) || ( length(y) < obj.getNTrainData )
+        fprintf(2, 'OrdGpModel.train(): Not enough data for model training.\n');
+        obj.trainGeneration = -1;
+        return
+      elseif size(X, 1) ~= length(y)
+        fprintf(2, 'OrdGpModel.train(): Different number of training points in X and y.\n');
+        obj.trainGeneration = -1;
+        return
+      end
+      
       mu = obj.stateVariables.mu;
       lambda = obj.stateVariables.lambda;
       nBins = myeval(obj.options.nBins);
@@ -132,7 +143,7 @@ classdef OrdGpModel < Model
       % (at least for binning)
       if (~obj.options.normalizeY ...
           && (max(y) - min(y)) > 1e4)
-        fprintf(2, 'Y-Normalization is switched ON for large Y-scale.\n');
+        fprintf(2, 'OrdGpModel.train(): Y-Normalization is switched ON for large Y-scale.\n');
         obj.options.normalizeY = true;
       end
       if (obj.options.normalizeY)
@@ -203,6 +214,9 @@ classdef OrdGpModel < Model
       if (obj.ordgpMdl.MinimumNLP < Inf) % && (obj.fitErr.mae <= nBins / 5)
         obj.trainLikelihood = obj.ordgpMdl.MinimumNLP;
         obj.trainGeneration = generation;
+      else
+        obj.trainLikelihood = Inf;
+        obj.trainGeneration = -1;
       end
 
 %       if (obj.logModel)

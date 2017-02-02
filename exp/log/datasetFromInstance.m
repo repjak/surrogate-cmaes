@@ -14,6 +14,8 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   % dim = 2;
   % id = 1;
 
+  dataset = {};
+
   if nargin < 6
     if nargin < 1
       help datasetFromInstance
@@ -35,7 +37,6 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
     exp_settings = SF.exp_settings;
   else
     warning('Model file or scmaes output file is missing in f%d %dD (id %d).', fun, dim, id)
-    dataset = {};
     return
   end
 
@@ -54,6 +55,13 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   testSetX = cell(nDatasetsPerInstance, 1);
   testSetY = cell(nDatasetsPerInstance, 1);
 
+  % return no result if there is not enough models
+  % TODO: solve this
+  if length(models) < gens(end)
+    warning('Not enough models to generate dataset!')
+    return
+  end
+  
   % Dataset generation
 
   for i = 1:nDatasetsPerInstance
