@@ -2,14 +2,14 @@
 % ordgp model testing
 
 % settings
-func = (1:24);
-dims = [2, 5, 10, 20];
+func = 1;%(1:24);
+dims = 2;%[2, 5, 10, 20];
 maxEvals = 100;
 
 % path settings
-defFolder = fullfile('exp', 'experiments', 'model');
+defFolder = fullfile('exp', 'experiments', 'model2');
 defSetFile = fullfile(defFolder, 'defData', ['defSet_', num2str(maxEvals), 'FE.mat']);
-defModelFolder = fullfile(defFolder, 'defData', 'defModel');
+defModelFolder = fullfile(defFolder, 'defData', ['defModel_', num2str(maxEvals), 'FE']);
 
 % default model options
 defModelOptions.useShift = false;

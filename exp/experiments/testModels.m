@@ -123,9 +123,9 @@ function modelFolder = testModels(modelType, modelOptions, dataset, func, dims, 
               warning('Stop testing if you do not want to rewrite file %s', modelFile)
             end
             % test model
-            [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
+            [stats, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
             % save model results
-            save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+            save(modelFile, 'stats', 'model', 'ym')
           end
         end
       end

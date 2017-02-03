@@ -100,9 +100,9 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
         if ~exist(modelFile, 'file')
           scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
           load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
-          [mse, kendall, rde, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
+          [stats, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
           % save model results
-          save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
+          save(modelFile, 'stats', 'model', 'ym')
         end
       end
       

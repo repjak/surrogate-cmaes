@@ -7,15 +7,12 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
 %   func         - functions for statistics computation
 %   dims         - dimensions for statistics computation
 %   dispRes      - display results | boolean
-
-  % path settings
-  defFolder = fullfile('exp', 'experiments', 'model');
  
   if nargin < 4
     if nargin < 3
       if nargin < 2
         if nargin < 1
-          help compareModels
+          help modelStatistics
           return
         end
         func = 1;
@@ -33,13 +30,14 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
   assert(isnumeric(func), '''func'' has to be integer')
   assert(isnumeric(dims), '''dims'' has to be integer')
   for m = 1:nModel
-    assert(isdir(modelFolders{m}), '%s is not folder', modelFolders{m})
+    assert(isdir(modelFolders{m}), '%s is not a folder', modelFolders{m})
   end
   
   nFun = length(func);
   nDim = length(dims);
   
   mse     = cell(nModel, nFun, nDim);
+  mzoe    = cell(nModel, nFun, nDim);
   kendall = cell(nModel, nFun, nDim);
   rde     = cell(nModel, nFun, nDim);
   model   = cell(nModel, nFun, nDim);
@@ -51,6 +49,15 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
       for d = 1:nDim
         [~, modelName] = fileparts(modelFolders{m});
         isFile = dir(sprintf('%s*_f%d_%dD.mat', [modelFolders{m}, filesep, modelName], func(f), dims(d)));
+        % modelName can end with _#FE
+        if isempty(isFile)
+          modelNameEnd = regexp(modelName, '._\d*FE');
+          if ~isempty(modelNameEnd)
+            isFile = dir(sprintf('%s*_f%d_%dD.mat', ...
+              [modelFolders{m}, filesep, modelName(1:modelNameEnd)], ...
+              func(f), dims(d)));
+          end
+        end
         % multiple file case
         if length(isFile) > 1
           warning('Multiple files for function %d dimension %d model %s. Using first one.', func(f), dims(d), modelName)
@@ -63,15 +70,18 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
           ym{m, f, d} = S.ym;
           
           mse_tmp = NaN(size(S.mse));
+          mzoe_tmp = NaN(size(S.mzoe));
           kendall_tmp = NaN(size(S.kendall));
           rde_tmp = NaN(size(S.rde));
           % only model not considered as constant will replace NaN with statistics
           isTrained = (arrayfun(@(x) S.model{x}.trainGeneration, 1:length(S.model)) > 0);
           mse_tmp(isTrained) = S.mse(isTrained);
+          mzoe_tmp(isTrained) = S.mzoe(isTrained);
           kendall_tmp(isTrained) = S.kendall(isTrained);
           rde_tmp(isTrained) = S.rde(isTrained);
           
           mse{m, f, d} = mse_tmp;
+          mzoe{m, f, d} = mzoe_tmp;
           kendall{m, f, d} = kendall_tmp;
           rde{m, f, d} = rde_tmp;
         end
@@ -87,9 +97,9 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
   
   if dispRes
     fprintf('*** RDE ***\n')
-    dispResults(meanrde, func, dims)
+    dispResults(stats.meanrde, func, dims)
     fprintf('*** Kendall ***\n')
-    dispResults(meankendall, func, dims)
+    dispResults(stats.meankendall, func, dims)
   end
 
 end

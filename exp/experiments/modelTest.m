@@ -1,4 +1,4 @@
-function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
+function [stats, model, ym] = modelTest(modelType, modelOpts, ds)
 % modelTest(modelType, modelOpts, ds) compute statistics on chosen model
 %
 % Input:
@@ -19,6 +19,7 @@ function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
   nDatasetsPerInstance = length(ds.trainSetX);
 
   mse = NaN(nDatasetsPerInstance, 1);
+  mzoe = NaN(nDatasetsPerInstance, 1);
   kendall = NaN(nDatasetsPerInstance, 1);
   rde = NaN(nDatasetsPerInstance, 1);
   model = cell(nDatasetsPerInstance, 1);
@@ -29,11 +30,13 @@ function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
     m = m.train(ds.trainSetX{i}, ds.trainSetY{i}, ds.cmaesStates{i}, ds.sampleOpts);
 
     if m.isTrained()
+      y = ds.testSetY{i};
       ym{i} = m.predict(ds.testSetX{i});
       % calculate statistics
-      mse(i) = sum((ym{i} - ds.testSetY{i}).^2) / length(ym{i});
-      kendall(i) = corr(ym{i}, ds.testSetY{i}, 'type', 'kendall');
-      rde(i) = errRankMu(ym{i}, ds.testSetY{i}, floor(length(ym{i})/2));
+      mse(i)     = predictionStats(y, ym{i}, 'mse');
+      mzoe(i)    = predictionStats(y, ym{i}, 'mzoe');
+      kendall(i) = predictionStats(y, ym{i}, 'kendall');
+      rde(i)     = predictionStats(y, ym{i}, 'rde');
     end
     
     model{i} = m;
@@ -41,4 +44,10 @@ function [mse, kendall, rde, model, ym] = modelTest(modelType, modelOpts, ds)
     fprintf('Model (gen. # %3d) MSE = %e, Kendall = %.2f, rankDiffErr = %.2f\n', ...
       ds.generations(i), mse(i), kendall(i), rde(i));
   end
+  
+  % create stats structure
+  stats.mse = mse;
+  stats.mzoe = mzoe;
+  stats.kendall = kendall;
+  stats.rde = rde;
 end

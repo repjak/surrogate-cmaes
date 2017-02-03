@@ -33,28 +33,29 @@ end
 exppath = fullfile('exp', 'experiments');
 defModelFolder = fullfile(exppath, 'model');
 ord_path = fullfile(exppath, 'exp_doubleEC_ord_02');
+% model names
+avg_none      = 'ordgpModel_814382';
+met_none      = 'ordgpModel_814470';
+avg_clus_mu   = 'ordgpModel_814470';
+avg_clus_lam  = 'ordgpModel_1026675';
+avg_clus_2lam = 'ordgpModel_1034955';
+avg_unip_mu   = 'ordgpModel_971627';
+avg_unip_lam  = 'ordgpModel_1016028';
+avg_unip_2lam = 'ordgpModel_1024280';
+met_clus_mu   = 'ordgpModel_982107';
+met_clus_lam  = 'ordgpModel_1026763';
+met_clus_2lam = 'ordgpModel_1035043';
+met_unip_mu   = 'ordgpModel_971715';
+met_unip_lam  = 'ordgpModel_1016116';
+met_unip_2lam = 'ordgpModel_1024368';
 % model folders
-gp_model_f    = fullfile(defModelFolder, 'defData', 'defModel_100FE');
-avg_none      = fullfile(defModelFolder, 'ordgpModel_814382');
-met_none      = fullfile(defModelFolder, 'ordgpModel_814470');
-avg_clus_mu   = fullfile(defModelFolder, 'ordgpModel_982019');
-avg_clus_lam  = fullfile(defModelFolder, 'ordgpModel_1026675');
-avg_clus_2lam = fullfile(defModelFolder, 'ordgpModel_1034955');
-avg_unip_mu   = fullfile(defModelFolder, 'ordgpModel_971627');
-avg_unip_lam  = fullfile(defModelFolder, 'ordgpModel_1016028');
-avg_unip_2lam = fullfile(defModelFolder, 'ordgpModel_1024280');
-met_clus_mu   = fullfile(defModelFolder, 'ordgpModel_982107');
-met_clus_lam  = fullfile(defModelFolder, 'ordgpModel_1026763');
-met_clus_2lam = fullfile(defModelFolder, 'ordgpModel_1035043');
-met_unip_mu   = fullfile(defModelFolder, 'ordgpModel_971715');
-met_unip_lam  = fullfile(defModelFolder, 'ordgpModel_1016116');
-met_unip_2lam = fullfile(defModelFolder, 'ordgpModel_1024368');
-
-modelFolders = {avg_none; met_none; ...
+modelNames = {avg_none; met_none; ...
                 avg_clus_mu; avg_clus_lam; avg_clus_2lam; ...
                 avg_unip_mu; avg_unip_lam; avg_unip_2lam; ...
                 met_clus_mu; met_clus_lam; met_clus_2lam; ...
                 met_unip_mu; met_unip_lam; met_unip_2lam};
+modelFolders = cellfun(@(x) fullfile(defModelFolder, [x, '_', num2str(maxEvals), 'FE']), ...
+                       modelNames, 'UniformOutput', false);
               
 % compute model statistics
 
@@ -66,4 +67,4 @@ end
 end
 
 %% compare results
-compareModels(modelFolders, func, dims)
+modelStatistics(modelFolders, func, dims)
