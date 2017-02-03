@@ -1,44 +1,69 @@
+%% GECCO 2017 article plots and tables
+% Script for making graphs showing the dependence of minimal function
+% values on the number of function values and tables showing differences
+% between ORDGP and GP DTS-CMA-ES.
+% 
+% Created for GECCO 2017 article.
 
-% ordgp model testing
+%% initial settings
+
+tmpFName = fullfile('/tmp', 'gecco2017data.mat');
+if (exist(tmpFName', 'file'))
+  load(tmpFName);
+else
 
 % settings
 func = (1:24);
 dims = [2, 5, 10, 20];
 maxEvals = 100;
 
+% folder for results
+actualFolder = pwd;
+articleFolder = fullfile(actualFolder(1:end - 1 - length('surrogate-cmaes')), 'latex_scmaes', 'gecco2017paper');
+plotResultsFolder = fullfile(articleFolder, 'images');
+tableFolder = fullfile(articleFolder, 'tex');
+if ~isdir(plotResultsFolder)
+  mkdir(plotResultsFolder)
+end
+if ~isdir(tableFolder)
+  mkdir(tableFolder)
+end
+
 % path settings
-defFolder = fullfile('exp', 'experiments', 'model');
-defModelFolder = fullfile(defFolder, 'defData', 'defModel');
+exppath = fullfile('exp', 'experiments');
+defModelFolder = fullfile(exppath, 'model');
+ord_path = fullfile(exppath, 'exp_doubleEC_ord_02');
+% model folders
+gp_model_f    = fullfile(defModelFolder, 'defData', 'defModel_100FE');
+avg_none      = fullfile(defModelFolder, 'ordgpModel_814382');
+met_none      = fullfile(defModelFolder, 'ordgpModel_814470');
+avg_clus_mu   = fullfile(defModelFolder, 'ordgpModel_982019');
+avg_clus_lam  = fullfile(defModelFolder, 'ordgpModel_1026675');
+avg_clus_2lam = fullfile(defModelFolder, 'ordgpModel_1034955');
+avg_unip_mu   = fullfile(defModelFolder, 'ordgpModel_971627');
+avg_unip_lam  = fullfile(defModelFolder, 'ordgpModel_1016028');
+avg_unip_2lam = fullfile(defModelFolder, 'ordgpModel_1024280');
+met_clus_mu   = fullfile(defModelFolder, 'ordgpModel_982107');
+met_clus_lam  = fullfile(defModelFolder, 'ordgpModel_1026763');
+met_clus_2lam = fullfile(defModelFolder, 'ordgpModel_1035043');
+met_unip_mu   = fullfile(defModelFolder, 'ordgpModel_971715');
+met_unip_lam  = fullfile(defModelFolder, 'ordgpModel_1016116');
+met_unip_2lam = fullfile(defModelFolder, 'ordgpModel_1024368');
 
-% default model options
-defModelOptions.useShift = false;
-defModelOptions.predictionType = 'sd2';
-defModelOptions.trainAlgorithm = 'fmincon';
-defModelOptions.covFcn = '{@covMaterniso, 5}';
-defModelOptions.normalizeY = true;
-defModelOptions.hyp.lik = log(0.01);
-defModelOptions.hyp.cov = log([0.5; 2]);
+modelFolders = {avg_none; met_none; ...
+                avg_clus_mu; avg_clus_lam; avg_clus_2lam; ...
+                avg_unip_mu; avg_unip_lam; avg_unip_2lam; ...
+                met_clus_mu; met_clus_lam; met_clus_2lam; ...
+                met_unip_mu; met_unip_lam; met_unip_2lam};
+              
+% compute model statistics
 
-% test model options
-modelSet = defModelOptions;
-% none binning
-modelSet.prediction = {'avgord', 'metric'};
-modelSet.binning = 'none';
-modelOptions = combineFieldValues(modelSet);
-% the rest of settings
-modelSet.binning = {'logcluster', 'unipoints'};
-modelSet.nBins = {'mu', 'lambda', '2*lambda'};
-modelRest = combineFieldValues(modelSet);
-% add rest to model options
-modelOptions = [modelOptions; modelRest];
 
-%% create testing dataset
-ds = modelTestSets('exp_doubleEC_21_log', func, dims, maxEvals);
+if (~exist(tmpFName, 'file'))
+  save(tmpFName);
+end
 
-%% test chosen models
-modelFolders = testModels('ordgp', modelOptions, ds, func, dims);
-% add default folder (GpModel)
-modelFolders = [modelFolders; defModelFolder];
+end
 
 %% compare results
 compareModels(modelFolders, func, dims)

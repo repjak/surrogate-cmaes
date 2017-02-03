@@ -34,8 +34,9 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   experimentPath = fullfile('exp', 'experiments', exp_id);
   outputFolder = fullfile('exp', 'experiments', 'model');
   dataFolder = fullfile(outputFolder, 'defData');
-  modelFolder = fullfile(dataFolder, 'defModel');
-  datasetName = fullfile(dataFolder, 'defSet');
+  datasetName = ['defSet_', num2str(maxEval),'FE'];
+  modelFolder = fullfile(dataFolder, ['defModel_', num2str(maxEval),'FE']);
+  datasetFile = fullfile(dataFolder, datasetName);
   defModelName = fullfile(modelFolder, 'defModel');
   
   % create folders
@@ -86,19 +87,23 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
       fprintf('#### f%d in %dD ####\n', fun(f), dim(d));
 
       % load dataset from instance
-      ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+      if isempty(ds{f, d})
+        ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+      else
+        ds_actual = ds{f, d};
+      end
       % succesfully loaded
       if isstruct(ds_actual)
         ds{f, d} = ds_actual;            
         % compute default models if they do not exist
         modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
-  %       if ~exist(modelFile, 'file')
+        if ~exist(modelFile, 'file')
           scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
           load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
           [mse, kendall, rde, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
           % save model results
           save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
-  %       end
+        end
       end
       
     % function loop end  
@@ -108,6 +113,6 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   end
   
   % save default dataset
-  save(datasetName, 'ds', 'fun', 'dim')
+  save(datasetFile, 'ds', 'fun', 'dim', 'maxEval')
   
 end

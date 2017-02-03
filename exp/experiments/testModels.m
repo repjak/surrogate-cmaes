@@ -1,4 +1,4 @@
-function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims)
+function modelFolder = testModels(modelType, modelOptions, dataset, func, dims, rewrite)
 % testModels(modelType, modelOptions, dataset, func, dims) tests model 
 % on dataset.
 %
@@ -11,6 +11,11 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
 %   dataset      - data for testing | cell-array or string
 %   func         - functions to test | double
 %   dims         - dimensions to test | double
+%   rewrite      - rewrite existing result files | boolean
+%
+% Output:
+%   modelFolder  - list of folders containing results | cell-array of 
+%                  string
 %
 % See Also:
 %   modelTest, modelTestSet, Model
@@ -19,21 +24,24 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
   defFolder = fullfile('exp', 'experiments', 'model');
   defDatasetPath = fullfile(defFolder, 'defData', 'defSet.mat');
  
-  if nargin < 5
-    if nargin < 4
-      if nargin < 3
-        if nargin < 2
-          if nargin < 1
-            help testModels
-            return
+  if nargin < 6
+    if nargin < 5
+      if nargin < 4
+        if nargin < 3
+          if nargin < 2
+            if nargin < 1
+              help testModels
+              return
+            end
+            modelOptions = struct();
           end
-          modelOptions = struct();
+          dataset = defDatasetPath;
         end
-        dataset = defDatasetPath;
+        func = 1;
       end
-      func = 1;
+      dims = 2;
     end
-    dims = 2;
+    rewrite = false;
   end
   
   % input check
@@ -58,14 +66,13 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
   % load data
   if ischar(dataset)
     loadData = load(dataset);
-    data = loadData.ds;
-    dataFun = loadData.fun;
-    dataDim = loadData.dim;
   else
-    data = dataset;
-    dataFun = func;
-    dataDim = dims;
+    loadData = struct();
   end
+  data = defopts(loadData, 'ds', dataset);
+  dataFun = defopts(loadData, 'fun', func);
+  dataDim = defopts(loadData, 'dim', dims);
+  maxEval = defopts(loadData, 'maxEval', []);
   
   % check functions and dimensions for testing
   funcId = ismember(func, dataFun);
@@ -83,9 +90,12 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
   nFunc = length(func);
   nDims = length(dims);
   
-%   modelHash = cellstr(num2str((1:nModel)'));
   modelName = cellfun(@(x,y) [x, 'Model_', modelHash(y)], modelType, modelOptions, 'UniformOutput', false);
   modelFolder = cellfun(@(x) fullfile(defFolder, x), modelName, 'UniformOutput', false);
+    % if there is an information about maximum of evaluations write it
+  if ~isempty(maxEval)
+    modelFolder = cellfun(@(x) [x, '_', num2str(maxEval), 'FE'], modelFolder, 'UniformOutput', false);
+  end
   for m = 1:nModel    
     if ~exist(modelFolder{m}, 'dir')
       mkdir(modelFolder{m})
@@ -104,16 +114,19 @@ function [modelFolder] = testModels(modelType, modelOptions, dataset, func, dims
           fprintf('*******************  Fun: %d  Dim: %d  Model: %d  *******************\n', fun, dim, m)
 
           modelFile = fullfile(modelFolder{m}, sprintf('%s_f%d_%dD.mat', modelName{m}, fun, dim));
-          % warn user if the result file will replaced by the new one
-          if exist(modelFile, 'file')
-            warning('Stop testing if you do not want to rewrite file %s', modelFile)
+          % do not rewrite existing files unless wanted
+          if exist(modelFile, 'file') && ~rewrite
+            fprintf('File %s already exist.\n', modelFile)
+          else
+            % warn user if the result file will replaced by the new one
+            if exist(modelFile, 'file') && rewrite
+              warning('Stop testing if you do not want to rewrite file %s', modelFile)
+            end
+            % test model
+            [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
+            % save model results
+            save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
           end
-%           else
-          % test model
-          [mse, kendall, rde, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
-          % save model results
-          save(modelFile, 'mse', 'kendall', 'rde', 'model', 'ym')
-%           end
         end
       end
     end 

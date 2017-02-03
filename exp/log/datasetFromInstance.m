@@ -15,6 +15,7 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   % id = 1;
 
   dataset = {};
+  models  = {};
 
   if nargin < 6
     if nargin < 1
@@ -29,10 +30,12 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   % load data from files
   savedModelsFile = sprintf('%s/bbob_output/%s_modellog_%d_%dD_%d.mat', experimentPath, exp_id, fun, dim, id);
   scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun, dim, id);
-  if exist(savedModelsFile, 'file') && exist(scmaesOutFile, 'file')
-    MF = load(savedModelsFile, 'models');
-    models = MF.models;
-    SF = load(scmaesOutFile, 'cmaes_out', 'exp_settings');
+  if exist(scmaesOutFile, 'file')
+    if exist(savedModelsFile, 'file')
+      MF = load(savedModelsFile, 'models');
+      models = MF.models;
+    end
+    SF = load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
     cmaes_out = SF.cmaes_out;
     exp_settings = SF.exp_settings;
   else
@@ -54,42 +57,67 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
   trainSetY = cell(nDatasetsPerInstance, 1);
   testSetX = cell(nDatasetsPerInstance, 1);
   testSetY = cell(nDatasetsPerInstance, 1);
-
-  % return no result if there is not enough models
-  % TODO: solve this
-  if length(models) < gens(end)
-    warning('Not enough models to generate dataset!')
-    return
-  end
   
   % Dataset generation
 
   for i = 1:nDatasetsPerInstance
     g = gens(i);
-    m = models{g};
 
     lambda = sum(cmo.generations == g);
 
-    fprintf('Train set size (gen.# %3d): %3d\n', g, size(m.dataset.X,1));
+    if (length(models) >= g  &&  ~isempty(models{g}))
+      % use the data in the model from DTS-CMA-ES run
+      m = models{g};
+      xmean = m.trainMean';
+      sigma = m.trainSigma;
+      BD    = m.trainBD;
+      dim   = m.dim;
+      X_train = (BD * m.dataset.X' * sigma)';
+      y_train = m.dataset.y;
+    else
+      % the model is not saved, so create a fresh new one
+      xmean = cmo.means(:,g);
+      sigma = cmo.sigmas(g);
+      BD    = cmo.BDs{g};
+      dim   = exp_settings.dim;
+      m = ModelFactory.createModel(SF.surrogateParams.modelType, SF.surrogateParams.modelOpts, xmean');
+
+      % create the Archive of original points
+      minTrainSize = m.getNTrainData();
+      archive = Archive(dim);
+      orig_id = logical(cmo.origEvaled(1:(cmo.generationStarts(g)-1)));
+      X_train = cmo.arxvalids(:,orig_id)';
+      y_train = cmo.fvalues(orig_id)';
+      archive.save(X_train, y_train, 5);
+      archive.gens = cmo.generations(orig_id);
+
+      % find the model's trainset -- points near the current xmean
+      nArchivePoints = myeval(SF.surrogateParams.evoControlTrainNArchivePoints);
+      [X_train, y_train, nData] = archive.getDataNearPoint(nArchivePoints, ...
+        xmean', SF.surrogateParams.evoControlTrainRange, ...
+        sigma, BD);
+    end
+
+    fprintf('Train set size (gen.# %3d): %3d\n', g, size(X_train,1));
 
     cmaesState = struct( ...
-      'xmean', m.trainMean', ...
-      'sigma', m.trainSigma, ...
+      'xmean', xmean, ...
+      'sigma', sigma, ...
       'lambda', lambda, ...
-      'BD', m.trainBD, ...
+      'BD', BD, ...
       ... % 'diagD', diagD, ...
       'diagD', [], ...
       ... % 'diagC', diagC, ...
-      'dim', m.dim, ...
+      'dim', dim, ...
       'mu', floor(lambda/2), ...
       'countiter', g);
 
     sampleOpts = struct( ...
       'noiseReevals', 0, ...
       'isBoundActive', true, ...
-      'lbounds', -5 * ones(m.dim, 1), ...
-      'ubounds',  5 * ones(m.dim, 1), ...
-      'counteval', cmaes_out{1}{1}.generationStarts(g), ...
+      'lbounds', -5 * ones(dim, 1), ...
+      'ubounds',  5 * ones(dim, 1), ...
+      'counteval', cmo.generationStarts(g), ...
       'flgEvalParallel', false, ...
       'flgDiagonalOnly', false, ...
       'noiseHandling', false, ...
@@ -97,16 +125,16 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
       'origPopSize', lambda);
 
     % Generate fresh CMA-ES' \lambda offsprings
-    [arx, arxvalid, arz] = sampleCmaesNoFitness(m.trainSigma, lambda, cmaesState, sampleOpts);
+    [arx, arxvalid, arz] = sampleCmaesNoFitness(sigma, lambda, cmaesState, sampleOpts);
 
     % Save everything needed
-    trainSetX{i} = (m.trainBD * m.dataset.X' * m.trainSigma)';
-    trainSetY{i} = m.dataset.y;
+    trainSetX{i} = X_train;
+    trainSetY{i} = y_train;
     testSetX{i}  = arxvalid';
     testSetY{i}  = fgeneric(testSetX{i}')';
-    means{i}     = m.trainMean;
-    sigmas{i}    = m.trainSigma;
-    BDs{i}       = m.trainBD;
+    means{i}     = xmean';
+    sigmas{i}    = sigma;
+    BDs{i}       = BD;
     cmaesStates{i} = cmaesState;
   end
 
