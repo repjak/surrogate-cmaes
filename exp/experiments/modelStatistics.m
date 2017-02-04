@@ -107,6 +107,7 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
   
   % display results
   if dispRes
+    fprintf('\n')
     fprintf('*** RDE ***\n')
     dispResults(stats.meanrde, func, dims)
     fprintf('*** Kendall ***\n')
