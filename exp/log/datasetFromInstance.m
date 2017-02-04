@@ -124,6 +124,10 @@ function dataset = datasetFromInstance(exp_id, nDatasetsPerInstance, fun, dim, i
       'xintobounds', @xintobounds, ...
       'origPopSize', lambda);
 
+      
+    % set seed due to reproducibility of default dataset
+    rng(maxFunEvals)
+    
     % Generate fresh CMA-ES' \lambda offsprings
     [arx, arxvalid, arz] = sampleCmaesNoFitness(sigma, lambda, cmaesState, sampleOpts);
 

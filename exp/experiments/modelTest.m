@@ -21,6 +21,8 @@ function [stats, model, ym] = modelTest(modelType, modelOpts, ds)
   mse = NaN(nDatasetsPerInstance, 1);
   mzoe = NaN(nDatasetsPerInstance, 1);
   kendall = NaN(nDatasetsPerInstance, 1);
+  rankmse = NaN(nDatasetsPerInstance, 1);
+  rankmzoe = NaN(nDatasetsPerInstance, 1);
   rde = NaN(nDatasetsPerInstance, 1);
   model = cell(nDatasetsPerInstance, 1);
   ym = cell(nDatasetsPerInstance, 1);
@@ -33,10 +35,12 @@ function [stats, model, ym] = modelTest(modelType, modelOpts, ds)
       y = ds.testSetY{i};
       ym{i} = m.predict(ds.testSetX{i});
       % calculate statistics
-      mse(i)     = predictionStats(y, ym{i}, 'mse');
-      mzoe(i)    = predictionStats(y, ym{i}, 'mzoe');
-      kendall(i) = predictionStats(y, ym{i}, 'kendall');
-      rde(i)     = predictionStats(y, ym{i}, 'rde');
+      mse(i)      = predictionStats(y, ym{i}, 'mse');
+      mzoe(i)     = predictionStats(y, ym{i}, 'mzoe');
+      kendall(i)  = predictionStats(y, ym{i}, 'kendall');
+      rankmse(i)  = predictionStats(y, ym{i}, 'rankmse');
+      rankmzoe(i) = predictionStats(y, ym{i}, 'rankmzoe');
+      rde(i)      = predictionStats(y, ym{i}, 'rde');
     end
     
     model{i} = m;
@@ -49,5 +53,7 @@ function [stats, model, ym] = modelTest(modelType, modelOpts, ds)
   stats.mse = mse;
   stats.mzoe = mzoe;
   stats.kendall = kendall;
+  stats.rankmse = rankmse;
+  stats.rankmzoe = rankmzoe;
   stats.rde = rde;
 end
