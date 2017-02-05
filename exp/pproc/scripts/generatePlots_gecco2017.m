@@ -49,6 +49,7 @@ met_unip_mu   = 'ordgpModel_971715';
 met_unip_lam  = 'ordgpModel_1016116';
 met_unip_2lam = 'ordgpModel_1024368';
 % model folders
+gpModelFolder = fullfile(defModelFolder, 'defData', ['defModel_', num2str(maxEvals), 'FE']);
 modelNames = {avg_none; met_none; ...
                 avg_clus_mu; avg_clus_lam; avg_clus_2lam; ...
                 avg_unip_mu; avg_unip_lam; avg_unip_2lam; ...
@@ -56,9 +57,10 @@ modelNames = {avg_none; met_none; ...
                 met_unip_mu; met_unip_lam; met_unip_2lam};
 modelFolders = cellfun(@(x) fullfile(defModelFolder, [x, '_', num2str(maxEvals), 'FE']), ...
                        modelNames, 'UniformOutput', false);
+modelFolders = [gpModelFolder; modelFolders];
               
 % compute model statistics
-
+stats = modelStatistics(modelFolders, func, dims, false);
 
 if (~exist(tmpFName, 'file'))
   save(tmpFName);
@@ -67,4 +69,4 @@ end
 end
 
 %% compare results
-modelStatistics(modelFolders, func, dims)
+compareModels(modelFolders, func, dims)

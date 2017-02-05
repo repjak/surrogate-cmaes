@@ -60,8 +60,8 @@ classdef OrdGpModel < Model
         obj.hyp.lik = defopts(obj.options.hyp, 'lik', log(0.01));
       else
         obj.hyp.ordreg = [];
-        obj.hyp.cov = log([0.5; 2]);
-        obj.hyp.lik = log(0.01);
+        obj.hyp.cov = [];
+        obj.hyp.lik = [];
       end
       
       if (exist(obj.covFcn, 'file') == 2)
@@ -72,7 +72,7 @@ classdef OrdGpModel < Model
         if (~isfield(obj.hyp, 'cov') || isempty(obj.hyp.cov))
           error('Hyperparameters must be specified for custom covariance functions');
         end
-        obj.covFcn = eval(obj.covFcn);
+%         obj.covFcn = eval(obj.covFcn);
       end
       
       % normalize options
