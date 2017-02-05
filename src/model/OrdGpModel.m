@@ -72,7 +72,9 @@ classdef OrdGpModel < Model
         if (~isfield(obj.hyp, 'cov') || isempty(obj.hyp.cov))
           error('Hyperparameters must be specified for custom covariance functions');
         end
-%         obj.covFcn = eval(obj.covFcn);
+        if (isstr(obj.covFcn))
+          obj.covFcn = myeval(obj.covFcn);
+        end
       end
       
       % normalize options

@@ -26,7 +26,7 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
     end
     maxEval = 250;
   end
-  
+
   % default settings
   nDatasetsPerInstance = 10;
 
@@ -36,9 +36,9 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   dataFolder = fullfile(outputFolder, 'defData');
   datasetName = ['defSet_', num2str(maxEval),'FE'];
   modelFolder = fullfile(dataFolder, ['defModel_', num2str(maxEval),'FE']);
-  datasetFile = fullfile(dataFolder, datasetName);
+  datasetFile = fullfile(dataFolder, [datasetName '.mat']);
   defModelName = fullfile(modelFolder, 'defModel');
-  
+
   % create folders
   if ~exist(outputFolder, 'dir')
     mkdir(outputFolder)
@@ -49,7 +49,7 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   if ~exist(modelFolder, 'dir')
     mkdir(modelFolder)
   end
-  
+
   % check experiment parameters
   if exist(fullfile(experimentPath, 'scmaes_params.mat'), 'file')
     exp_par = load(fullfile(experimentPath, 'scmaes_params.mat'));
@@ -60,7 +60,7 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
     exp_dim = 2;
     exp_fun = 1;
   end
-  
+
   % check fun and dim values
   inExpFun = ismember(fun, exp_fun);
   inExpDim = ismember(dim, exp_dim);
@@ -75,8 +75,19 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
 
   nFun = length(fun);
   nDim = length(dim);
-  ds = cell(nFun, nDim);
-  
+
+  f_ds = struct('ds', {}, 'fun', [], 'dim', [], 'maxEval', maxEval);
+  if (exist(datasetFile, 'file'))
+    fprintf('The dataset file "%s" already existed.\n   Copying to "%s.bak".\n', datasetFile, datasetFile);
+    copyfile(datasetFile, [datasetFile '.bak']);
+    f_ds = load(datasetFile);
+    if (isfield(f_ds, 'ds') && ~isempty(f_ds.ds))
+      ds = f_ds.ds;
+    end
+  else
+    ds = cell(nFun, nDim);
+  end
+
   % dimension loop
   for d = 1:nDim
     d_exp = find(dim(d) == exp_dim);
@@ -86,33 +97,46 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
       id = (d_exp-1)*length(exp_fun) + f_exp;
       fprintf('#### f%d in %dD ####\n', fun(f), dim(d));
 
-      % load dataset from instance
-      if isempty(ds{f, d})
-        ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+      if (~isempty(ds{f, d}) && isstruct(ds{f, d}))
+        fprintf('...already loaded\n');
+        continue
+      end
+
+      modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
+      if (exist(modelFile, 'file'))
+        mfile = load(modelFile); % should be loaded: 'stats', 'model', 'ym', 'ds_actual'
+      end
+      if (isfield(mfile, 'ds_actual'))
+        ds_actual = mfile.ds_actual;
+        ds{f, d} = ds_actual;
       else
-        ds_actual = ds{f, d};
+        % load dataset from saved modellog/cmaes_out of the corresponding instance
+        if isempty(ds{f, d})
+          ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+        end
       end
       % succesfully loaded
       if isstruct(ds_actual)
-        ds{f, d} = ds_actual;            
+        ds{f, d} = ds_actual;
         % compute default models if they do not exist
-        modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
         if ~exist(modelFile, 'file')
           scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
           load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
           [stats, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
           % save model results
-          save(modelFile, 'stats', 'model', 'ym')
+          save(modelFile, 'stats', 'model', 'ym', 'ds_actual');
         end
       end
-      
     % function loop end  
     end
-    
+
   % dimension loop end
   end
-  
+
   % save default dataset
+  fun = union(fun, f_ds.fun);
+  dim = union(dim, f_ds.dim);
+  maxEval = min(maxEval, f_ds.maxEval);
   save(datasetFile, 'ds', 'fun', 'dim', 'maxEval')
-  
+
 end
