@@ -1,13 +1,12 @@
-
 % ordgp model testing
 
 % settings
-func = 1;%(1:24);
-dims = 2;%[2, 5, 10, 20];
+func = (1:24);
+dims = [2, 5, 10, 20];
 maxEvals = 100;
 
 % path settings
-defFolder = fullfile('exp', 'experiments', 'model2');
+defFolder = fullfile('exp', 'experiments', 'model');
 defSetFile = fullfile(defFolder, 'defData', ['defSet_', num2str(maxEvals), 'FE.mat']);
 defModelFolder = fullfile(defFolder, 'defData', ['defModel_', num2str(maxEvals), 'FE']);
 
@@ -17,7 +16,6 @@ defModelOptions.useShift = false;
 defModelOptions.predictionType = 'sd2';
 defModelOptions.trainAlgorithm = 'fmincon';
 defModelOptions.covFcn = 'squaredexponential';
-defModelOptions.hyp = [];
 defModelOptions.normalizeY = true;
 
 % test model options
