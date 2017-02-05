@@ -1,4 +1,3 @@
-
 % ordgp model testing
 
 % settings
@@ -17,7 +16,6 @@ defModelOptions.useShift = false;
 defModelOptions.predictionType = 'sd2';
 defModelOptions.trainAlgorithm = 'fmincon';
 defModelOptions.covFcn = 'squaredexponential';
-defModelOptions.hyp = [];
 defModelOptions.normalizeY = true;
 
 % test model options
