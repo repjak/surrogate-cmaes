@@ -73,9 +73,6 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
     dim = dim(inExpDim);
   end
 
-  nFun = length(fun);
-  nDim = length(dim);
-
   f_ds = struct('ds', {{}}, 'fun', {[]}, 'dim', {[]}, 'maxEval', {maxEval});
   if (exist(datasetFile, 'file'))
     fprintf('The dataset file "%s" already existed.\n   Copying to "%s.bak".\n', datasetFile, datasetFile);
@@ -89,40 +86,40 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   end
 
   % dimension loop
-  for d = 1:nDim
-    d_exp = find(dim(d) == exp_dim);
+  for d = dim
+    d_exp = find(d == exp_dim);
     % function loop
-    for f = 1:nFun
-      f_exp = find(fun(f) == exp_fun);
+    for f = fun
+      f_exp = find(f == exp_fun);
       id = (d_exp-1)*length(exp_fun) + f_exp;
-      fprintf('#### f%d in %dD ####\n', fun(f), dim(d));
+      fprintf('#### f%d in %dD ####\n', f, d);
 
-      if (~isempty(ds{f, d}) && isstruct(ds{f, d}))
+      if (~isempty(ds{f_exp, d_exp}) && isstruct(ds{f_exp, d_exp}))
         fprintf('...already loaded\n');
         continue
       end
 
-      modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
+      modelFile = sprintf('%s_f%d_%dD.mat', defModelName, f, d);
       if (exist(modelFile, 'file'))
         mfile = load(modelFile); % should be loaded: 'stats', 'model', 'ym', 'ds_actual'
         if (isfield(mfile, 'ds_actual'))
           ds_actual = mfile.ds_actual;
-          ds{f, d} = ds_actual;
+          ds{f_exp, d_exp} = ds_actual;
         end
       else
         % load dataset from saved modellog/cmaes_out of the corresponding instance
-        if isempty(ds{f, d})
-          ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, fun(f), dim(d), id, maxEval);
+        if isempty(ds{f_exp, d_exp})
+          ds_actual = datasetFromInstance(exp_id, nDatasetsPerInstance, f, d, id, maxEval);
         end
       end
       % succesfully loaded
       if isstruct(ds_actual)
-        ds{f, d} = ds_actual;
+        ds{f_exp, d_exp} = ds_actual;
         % compute default models if they do not exist
         if ~exist(modelFile, 'file')
-          scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, fun(f), dim(d), id);
+          scmaesOutFile = sprintf('%s/%s_results_%d_%dD_%d.mat', experimentPath, exp_id, f, d, id);
           load(scmaesOutFile, 'cmaes_out', 'exp_settings', 'surrogateParams');
-          [stats, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f, d});
+          [stats, model, ym] = modelTest(surrogateParams.modelType, surrogateParams.modelOpts, ds{f_exp, d_exp});
           % save model results
           save(modelFile, 'stats', 'model', 'ym', 'ds_actual');
         end
