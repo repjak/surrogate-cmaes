@@ -2,8 +2,9 @@
 % ordgp model testing
 
 % settings
-func = (1:24);
-dims = [2, 5, 10, 20];
+% func = (1:24);
+% dims = [2, 5, 10, 20];
+
 maxEvals = 100;
 
 % path settings
