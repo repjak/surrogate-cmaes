@@ -14,7 +14,7 @@
 
 # QUEUE = Metacentrum walltime (2h/4h/1d/2d/1w) -- queue will be decided accordingly
 QUEUE=1d
-export EXPID='modelTest_03'
+export EXPID='modelTest_04'
 
 # CWD = Directory of this particular file
 CWD=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -39,43 +39,22 @@ subtask() {
 
 ID=1;
 
-DIM=2;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 1 12`;
+DIM=2;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 1 12`;
 subtask $ID
-DIM=2;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 13 24`;
+DIM=2;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 13 24`;
 subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 1 8`;
+DIM=5;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 1 8`;
 subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 9 16`;
+DIM=5;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 9 16`;
 subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 17 24`;
+DIM=5;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 17 24`;
 subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 1 6`;
+DIM=10;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 1 6`;
 subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 7 12`;
+DIM=10;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 7 12`;
 subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 13 18`;
+DIM=10;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 13 18`;
 subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp";FUNC=`seq 19 24`;
-subtask $ID
-
-ID=10;
-
-DIM=2;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 1 12`;
-subtask $ID
-DIM=2;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 13 24`;
-subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 1 8`;
-subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 9 16`;
-subtask $ID
-DIM=5;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 17 24`;
-subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 1 6`;
-subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 7 12`;
-subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 13 18`;
-subtask $ID
-DIM=10;MATLAB_FCN="modelTesting_ordgp_02";FUNC=`seq 19 24`;
+DIM=10;MATLAB_FCN="modelTesting_ordgp_03";FUNC=`seq 19 24`;
 subtask $ID
 
