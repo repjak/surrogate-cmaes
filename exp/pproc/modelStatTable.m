@@ -3,28 +3,18 @@ function modelStatTable(stats, varargin)
 % Creates and prints table of model statistics.
 %
 % Input:
-%   stats     - structure of model statistics
+%   stats    - structure of model statistics
 %   settings - pairs of property (string) and value or struct with 
 %              properties as fields:
 %
-%     'DataNames'   - cell array of data names (e.g. names of algorithms)
-%     'DataDims'    - dimensions of data
-%     'DataFuns'    - functions of data
-%     'Evaluations' - evaluations chosen to count
-%     'Format'      - table format | ('tex', 'figure')
-%     'Ranking'     - type of ranking (see help createRankingTable)
-%                       'tolerant' - equal rank independence
-%                       'precise'  - equal ranks shift following ranks
-%                       'median'   - equal ranks replaced by medians of
-%                                    shifted ranks (from 'precise')
-%     'ResultFile'  - file containing resulting table
-%     'Statistic'   - statistic of data | string or handle (@mean, @median)
-%     'TableDims'   - dimensions chosen to count
-%     'TableFuns'   - functions chosen to count
-%
-% Output:
-%   rankTable - table of rankings
-%   ranks     - rankings for each function and dimension
+%     'DataDims'     - dimensions of data
+%     'DataFuns'     - functions of data
+%     'Format'       - table format | {'disp', 'tex'}
+%     'ModelNames'   - cell array of model names
+%     'ResultFolder' - folder containing resulting table
+%     'TableDims'    - dimensions chosen to count
+%     'TableFuns'    - functions chosen to count
+%     'TableType'    - type of statistic table | {'meanstd'}
 %
 % See Also:
 %   createRankingTable, speedUpPlot, speedUpPlotCompare, dataReady
@@ -142,9 +132,9 @@ function printTableTex(FID, tableData, mainStatName, func, dims, modelNames)
   
   % table headers
   fprintf(FID, '\\begin{table}\n');
-  fprintf(FID, '\tiny\n');
+  fprintf(FID, '\\tiny\n');
   fprintf(FID, '\\centering\n');
-  fprintf(FID, '\\resizebox*{\\textwidth}{\\textheight}{');
+  fprintf(FID, '\\resizebox{\\linewidth}{!}{');
   fprintf(FID, '\\begin{tabular}[pos]{ l %s }\n', repmat(' | c', 1, nModels));
   fprintf(FID, '\\hline\n');
   % dimension section
@@ -156,10 +146,13 @@ function printTableTex(FID, tableData, mainStatName, func, dims, modelNames)
       fprintf(FID, ' f%d', func(f));
       fprintf(FID, '%s ', boldBestMeanStd(tableData.mean(:, f, d), tableData.std(:, f, d), boldFunc));
       fprintf(FID, '\\\\\n');
+      if mod(f, 6) == 0
+        fprintf(FID, '\\hline\n');
+      end
     end
     fprintf(FID, '\\hline\n');
   end
-  fprintf(FID, '\\hline\n');
+%   fprintf(FID, '\\hline\n');
   fprintf(FID, '\\end{tabular}\n');
   fprintf(FID, '}\n');
   % dimension numbers 
