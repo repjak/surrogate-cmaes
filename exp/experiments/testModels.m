@@ -103,12 +103,10 @@ function modelFolder = testModels(modelType, modelOptions, dataset, func, dims, 
   end
   
   % dimension loop
-  for d = 1:nDims
-    dim = dims(d);
+  for dim = dims
     % function loop
-    for f = 1:nFunc;
-      fun = func(f);
-      if ~isempty(data{f, d})
+    for fun = func
+      if ~isempty(data{fun, dim})
         % model loop
         for m = 1:nModel
           fprintf('*******************  Fun: %d  Dim: %d  Model: %d  *******************\n', fun, dim, m)
@@ -123,13 +121,13 @@ function modelFolder = testModels(modelType, modelOptions, dataset, func, dims, 
               warning('Stop testing if you do not want to rewrite file %s', modelFile)
             end
             % test model
-            [stats, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{f, d});
+            [stats, model, ym] = modelTest(modelType{m}, modelOptions{m}, data{fun, dim});
             % save model results
             save(modelFile, 'stats', 'model', 'ym')
           end
         end
       end
-    end 
+    end
   end
   
 end
