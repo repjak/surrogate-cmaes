@@ -1,8 +1,11 @@
 % ordgp model testing
 
 % settings
-func = (1:24);
-dims = [2, 5, 10, 20];
+if ~exist('func', 'var')
+  func = (1:24);  end
+if ~exist('dims', 'var')
+  dims = [2, 5, 10, 20];  end
+
 maxEvals = 100;
 
 % path settings

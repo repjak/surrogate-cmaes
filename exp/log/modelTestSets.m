@@ -76,7 +76,7 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
   nFun = length(fun);
   nDim = length(dim);
 
-  f_ds = struct('ds', {}, 'fun', [], 'dim', [], 'maxEval', maxEval);
+  f_ds = struct('ds', {{}}, 'fun', {[]}, 'dim', {[]}, 'maxEval', {maxEval});
   if (exist(datasetFile, 'file'))
     fprintf('The dataset file "%s" already existed.\n   Copying to "%s.bak".\n', datasetFile, datasetFile);
     copyfile(datasetFile, [datasetFile '.bak']);
@@ -105,10 +105,10 @@ function ds = modelTestSets(exp_id, fun, dim, maxEval)
       modelFile = sprintf('%s_f%d_%dD.mat', defModelName, fun(f), dim(d));
       if (exist(modelFile, 'file'))
         mfile = load(modelFile); % should be loaded: 'stats', 'model', 'ym', 'ds_actual'
-      end
-      if (isfield(mfile, 'ds_actual'))
-        ds_actual = mfile.ds_actual;
-        ds{f, d} = ds_actual;
+        if (isfield(mfile, 'ds_actual'))
+          ds_actual = mfile.ds_actual;
+          ds{f, d} = ds_actual;
+        end
       else
         % load dataset from saved modellog/cmaes_out of the corresponding instance
         if isempty(ds{f, d})
