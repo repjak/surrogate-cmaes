@@ -92,7 +92,7 @@ modelFolders = [gpModelFolder; modelFolders];
 
               
 % compute model statistics
-% stats = modelStatistics(modelFolders, func, dims, false);
+stats = modelStatistics(modelFolders, func, dims, false);
 
 % load data from online testing
 dataFolders = {ord_2D_path; ...
@@ -167,8 +167,8 @@ end
 gpdts  = '\dtsgp';
 covMat = '\covMat';
 covSE  = '\covSE';
-clus   = '\mathrm{C}';
-unip   = '\mathrm{Q}';
+clus   = '\setHAC';
+unip   = '\setQuant';
 mu     = '\mu';
 lam    = '\lambda';
 lam2   = '2\lambda';
@@ -207,7 +207,7 @@ data = {se_av_non_data, ...
         se_av_uni_lam_data, ...
         cmaes_data};
 
-datanames = {'Ord-none', 'Ord-C-\mu', 'Ord-C-\lambda', 'Ord-Q-\mu', 'Ord-Q-\lambda', 'CMA-ES'};
+datanames = {'Ord-none', 'Ord-H-\mu', 'Ord-H-\lambda', 'Ord-Q-\mu', 'Ord-Q-\lambda', 'CMA-ES'};
 
 colors = [seAvNonCol; seAvCluMuCol; seAvCluLamCol; seAvUniMuCol; seAvUniLamCol; cmaesCol]/255;
 
@@ -229,18 +229,18 @@ han = relativeFValuesPlot(data, ...
                             
 print2pdf(han, pdfNames, 1)
              
-%% Algorithm comparison: DTS-CMA-ES, S-CMA-ES, saACMES, SMAC, CMA-ES
+%% Algorithm comparison: ordGP, DTS-CMA-ES, lmm-CMA-ES, saACMES, CMA-ES
 % Aggregation of function values across dimensions 2, 5.
 
-data = {se_av_clu_mu_data, ...
+data = {se_av_uni_lam_data, ...
         lmmcmaes_data, ...
         saacmes_data, ...
         dtscmaes_data, ...
         cmaes_data};
 
-datanames = {'Ord-C-\mu', 'lmm-CMA-ES', 'BIPOP-{}^{s*}ACMES-k', 'DTS-CMA-ES', 'CMA-ES'};
+datanames = {'Ord-Q-\lambda', 'lmm-CMA-ES', 'BIPOP-{}^{s*}ACMES-k', 'DTS-CMA-ES', 'CMA-ES'};
 
-colors = [seAvCluMuCol; lmmCol; saacmesCol; dtsCol; cmaesCol]/255;
+colors = [seAvUniLamCol; lmmCol; saacmesCol; dtsCol; cmaesCol]/255;
 
 plotDims = [2, 5];
 
@@ -262,6 +262,41 @@ han = relativeFValuesPlot(data, ...
                             
 print2pdf(han, pdfNames, 1)
 
-%% zip resulting files
+%% Algorithm comparison on chosen functions: ordGP, DTS-CMA-ES, lmm-CMA-ES,
+% saACMES, CMA-ES
+% Aggregation of function values across dimensions 2, 5.
+
+data = {se_av_uni_lam_data, ...
+        lmmcmaes_data, ...
+        saacmes_data, ...
+        dtscmaes_data, ...
+        cmaes_data};
+
+datanames = {'Ord-Q-\lambda', 'lmm-CMA-ES', 'BIPOP-{}^{s*}ACMES-k', 'DTS-CMA-ES', 'CMA-ES'};
+
+colors = [seAvUniLamCol; lmmCol; saacmesCol; dtsCol; cmaesCol]/255;
+
+plotDims = [2, 5];
+plotFuns = [6];
+
+clear pdfNames
+pdfNames = fullfile(plotResultsFolder, 'alg_f6_2_5D');
+
+close all
+han = relativeFValuesPlot(data, ...
+                              'DataNames', datanames, 'DataDims', funcSet.dims, ...
+                              'DataFuns', funcSet.BBfunc, 'Colors', colors, ...
+                              'PlotFuns', plotFuns, 'PlotDims', plotDims, ...
+                              'AggregateDims', false, 'OneFigure', true, ...
+                              'Statistic', @median, 'AggregateFuns', false, ...
+                              'LineSpecification', {'-.', '-.', '-', '-', '-', '-'}, ...
+                              'LegendOption', 'split', 'MaxEval', 100, ...
+                              'FunctionNames', true);
+
+                              
+                            
+print2pdf(han, pdfNames, 1)
+
+%% zip resulting plot files
 
 zip([plotResultsFolder, '.zip'], fullfile(plotResultsFolder, '*.pdf'))
