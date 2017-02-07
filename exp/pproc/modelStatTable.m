@@ -12,6 +12,7 @@ function modelStatTable(stats, varargin)
 %     'Format'       - table format | {'disp', 'tex'}
 %     'ModelNames'   - cell array of model names
 %     'ResultFolder' - folder containing resulting table
+%     'ShowCaption'  - show caption and print table environment | boolean
 %     'TableDims'    - dimensions chosen to count
 %     'TableFuns'    - functions chosen to count
 %     'TableType'    - type of statistic table | {'meanstd'}
@@ -43,6 +44,7 @@ function modelStatTable(stats, varargin)
   BBfunc  = defopts(settings, 'TableFuns', dataBBfuns);
   defResultFolder = fullfile('exp', 'pproc', 'tex');
   resultFolder = defopts(settings, 'ResultFolder', defResultFolder);
+  showCaption = defopts(settings, 'ShowCaption', true);
   
   % return only dimensions in the original data
   dimsId = ismember(dims, dataDims);
@@ -90,7 +92,7 @@ function modelStatTable(stats, varargin)
         resultFile = fullfile(resultFolder, [mainStatNames{t}, '.tex']);
         FID = fopen(resultFile, 'w');
         % print table to tex file
-        printTableTex(FID, tableData(t), mainStatNames{t}, BBfunc, dims, modelNames)
+        printTableTex(FID, tableData(t), mainStatNames{t}, BBfunc, dims, modelNames, showCaption)
         fclose(FID);
         fprintf('Table written to %s\n', resultFile);
       end
@@ -120,7 +122,7 @@ function dispTable(stat, func, dims, modelNames)
   end
 end
 
-function printTableTex(FID, tableData, mainStatName, func, dims, modelNames)
+function printTableTex(FID, tableData, mainStatName, func, dims, modelNames, showCaption)
 % Prints table to file FID
 
   nFunc = length(func);
@@ -131,10 +133,13 @@ function printTableTex(FID, tableData, mainStatName, func, dims, modelNames)
   [statName, boldFunc] = statSpecification(mainStatName);
   
   % table headers
-  fprintf(FID, '\\begin{table}\n');
-  fprintf(FID, '\\tiny\n');
-  fprintf(FID, '\\centering\n');
-  fprintf(FID, '\\resizebox{\\linewidth}{!}{');
+  if showCaption
+    fprintf(FID, '\\begin{table}\n');
+    fprintf(FID, '\\tiny\n');
+    fprintf(FID, '\\centering\n');
+    fprintf(FID, '\\resizebox{\\linewidth}{!}{');
+  end
+  
   fprintf(FID, '\\begin{tabular}[pos]{ l %s }\n', repmat(' | c', 1, nModels));
   fprintf(FID, '\\hline\n');
   % dimension section
@@ -154,19 +159,22 @@ function printTableTex(FID, tableData, mainStatName, func, dims, modelNames)
   end
 %   fprintf(FID, '\\hline\n');
   fprintf(FID, '\\end{tabular}\n');
-  fprintf(FID, '}\n');
-  % dimension numbers 
-  dimString = num2str(dims, ', %d');
-  dimString = dimString(2:end);
-  % caption printing
-  fprintf(FID, '\\vspace{1mm}\n');
-  fprintf(FID, ['\\caption{Means and standard deviations of %s of offline testing on 10 chosen generations ', ...
-                'from %d benchmark functions and dimensions D = \\{%s\\}. ', ...
-                'The best achieved values in each function are given in bold.}\n'], ...
-                statName, nFunc, dimString);
-               
-  fprintf(FID, '\\label{tab:%s}\n', mainStatName);
-  fprintf(FID, '\\end{table}\n');
+  
+  if showCaption
+    fprintf(FID, '}\n');
+    % dimension numbers 
+    dimString = num2str(dims, ', %d');
+    dimString = dimString(2:end);
+    % caption printing
+    fprintf(FID, '\\vspace{1mm}\n');
+    fprintf(FID, ['\\caption{Means and standard deviations of %s of offline testing on 10 chosen generations ', ...
+                  'from %d benchmark functions and dimensions D = \\{%s\\}. ', ...
+                  'The best achieved values in each function are given in bold.}\n'], ...
+                  statName, nFunc, dimString);
+
+    fprintf(FID, '\\label{tab:%s}\n', mainStatName);
+    fprintf(FID, '\\end{table}\n');
+  end
   
 end
 

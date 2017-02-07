@@ -16,6 +16,9 @@ else
 func = (1:24);
 dims = [2, 5, 10];
 maxEvals = 100;
+% needed function and dimension settings for GRAPHS !!!
+funcSet.BBfunc = func;
+funcSet.dims = [2, 5];
 
 % folder for results
 actualFolder = pwd;
@@ -32,7 +35,16 @@ end
 % path settings
 exppath = fullfile('exp', 'experiments');
 defModelFolder = fullfile(exppath, 'model');
-ord_path = fullfile(exppath, 'exp_doubleEC_ord_02');
+
+ord_2D_path = fullfile(exppath, 'exp_doubleEC_ord_05_2D');
+ord_2D_none_path = fullfile(exppath, 'exp_doubleEC_ord_05_2D_none');
+ord_5D_path = fullfile(exppath, 'exp_doubleEC_ord_04_5D');
+ord_5D_none_path = fullfile(exppath, 'exp_doubleEC_ord_05_5D_none');
+
+cmaes_path = fullfile(exppath, 'CMA-ES');
+saacmes_path = fullfile(exppath, 'BIPOP-saACM-k');
+dts_path = fullfile(exppath, 'DTS-CMA-ES_05_2pop');
+lmm_path = fullfile(exppath, 'lmm-CMA-ES');
 
 % model names
 % {covMaterniso, 5}
@@ -80,7 +92,69 @@ modelFolders = [gpModelFolder; modelFolders];
 
               
 % compute model statistics
-stats = modelStatistics(modelFolders, func, dims, false);
+% stats = modelStatistics(modelFolders, func, dims, false);
+
+% load data from online testing
+dataFolders = {ord_2D_path; ...
+               ord_2D_none_path; ...
+               ord_5D_path; ...
+               ord_5D_none_path; ...
+               cmaes_path; ...
+               saacmes_path; ...
+               dts_path; ...
+               lmm_path};
+             
+[evals, settings] = catEvalSet(dataFolders, funcSet);
+
+% find ids in settings
+clear findSet
+findSet.modelOpts.binning = 'none';
+se_noneId = getStructIndex(settings, findSet);
+
+findSet.modelOpts.binning = 'logcluster';
+findSet.modelOpts.nBins = 'mu';
+se_clust_muId = getStructIndex(settings, findSet);
+findSet.modelOpts.nBins = 'lambda';
+se_clust_lamId = getStructIndex(settings, findSet);
+
+findSet.modelOpts.binning = 'unipoints';
+findSet.modelOpts.nBins = 'mu';
+se_unip_muId = getStructIndex(settings, findSet);
+findSet.modelOpts.nBins = 'lambda';
+se_unip_lamId = getStructIndex(settings, findSet);
+
+clear findSet
+findSet.algName = 'CMA-ES';
+cma_Id = getStructIndex(settings, findSet);
+findSet.algName = 'BIPOP-saACM-k';
+saacm_Id = getStructIndex(settings, findSet);
+findSet.algName = 'DTS-CMA-ES_05_2pop';
+dts_Id = getStructIndex(settings, findSet);
+findSet.algName = 'lmm-CMA-ES';
+lmm_Id = getStructIndex(settings, findSet);
+
+% extract data
+se_av_non_data = evals(:, :, se_noneId);
+se_av_clu_mu_data = evals(:, :, se_clust_muId);
+se_av_clu_lam_data = evals(:, :, se_clust_lamId);
+se_av_uni_mu_data = evals(:, :, se_unip_muId);
+se_av_uni_lam_data = evals(:, :, se_unip_lamId);
+cmaes_data = evals(:, :, cma_Id);
+saacmes_data = evals(:, :, saacm_Id);
+dtscmaes_data = evals(:, :, dts_Id);
+lmmcmaes_data = evals(:, :, lmm_Id);
+
+% color settings
+seAvNonCol    = getAlgColors(1);
+seAvCluMuCol  = getAlgColors(2);
+seAvCluLamCol = getAlgColors(3);
+seAvUniMuCol  = getAlgColors(4);
+seAvUniLamCol = getAlgColors(5);
+
+cmaesCol   = [ 22,  22, 138];
+saacmesCol = [ 36, 140, 248];
+dtsCol     = [154, 205,  50];
+lmmCol     = [255, 225,   0];
 
 if (~exist(tmpFName, 'file'))
   save(tmpFName);
@@ -90,14 +164,15 @@ end
 
 %% create statistic tables
 % model names
+gpdts  = '\dtsgp';
 covMat = '\covMat';
 covSE  = '\covSE';
-clus = '\mathrm{C}';
-unip = '\mathrm{Q}';
-mu = '\mu';
-lam = '\lambda';
-lam2 = '2\lambda';
-modelNames = {'\mathrm{GP}'; ...
+clus   = '\mathrm{C}';
+unip   = '\mathrm{Q}';
+mu     = '\mu';
+lam    = '\lambda';
+lam2   = '2\lambda';
+modelNames = {gpdts; ...
               covMat; ... 
               strjoin({covMat, clus, mu}, ', '); ...
               strjoin({covMat, clus, lam}, ', '); ...
@@ -119,4 +194,74 @@ modelStatTable(stats, ...
                'DataDims', [2, 5, 10],...
                'Format', 'tex', ...
                'ResultFolder', tableFolder, ...
-               'ModelNames', modelNames)
+               'ModelNames', modelNames, ...
+               'ShowCaption', false)
+             
+%% Model settings comparison
+% Aggregation of function values across dimensions 2, 5.
+
+data = {se_av_non_data, ...
+        se_av_clu_mu_data, ...
+        se_av_clu_lam_data, ...
+        se_av_uni_mu_data, ...
+        se_av_uni_lam_data, ...
+        cmaes_data};
+
+datanames = {'Ord-none', 'Ord-C-\mu', 'Ord-C-\lambda', 'Ord-Q-\mu', 'Ord-Q-\lambda', 'CMA-ES'};
+
+colors = [seAvNonCol; seAvCluMuCol; seAvCluLamCol; seAvUniMuCol; seAvUniLamCol; cmaesCol]/255;
+
+plotDims = [2, 5];
+
+clear pdfNames
+pdfNames = {fullfile(plotResultsFolder, 'covSE2D'),...
+            fullfile(plotResultsFolder, 'covSE5D')};
+
+close all
+han = relativeFValuesPlot(data, ...
+                              'DataNames', datanames, 'DataDims', funcSet.dims, ...
+                              'DataFuns', funcSet.BBfunc, 'Colors', colors, ...
+                              'PlotFuns', funcSet.BBfunc, 'PlotDims', plotDims, ...
+                              'AggregateDims', false, 'OneFigure', false, ...
+                              'Statistic', @median, 'AggregateFuns', true, ...
+                              'LineSpecification', {'-.', '-.', '-', '-', '-', '-'}, ...
+                              'LegendOption', 'show', 'MaxEval', 100);                              
+                            
+print2pdf(han, pdfNames, 1)
+             
+%% Algorithm comparison: DTS-CMA-ES, S-CMA-ES, saACMES, SMAC, CMA-ES
+% Aggregation of function values across dimensions 2, 5.
+
+data = {se_av_clu_mu_data, ...
+        lmmcmaes_data, ...
+        saacmes_data, ...
+        dtscmaes_data, ...
+        cmaes_data};
+
+datanames = {'Ord-C-\mu', 'lmm-CMA-ES', 'BIPOP-{}^{s*}ACMES-k', 'DTS-CMA-ES', 'CMA-ES'};
+
+colors = [seAvCluMuCol; lmmCol; saacmesCol; dtsCol; cmaesCol]/255;
+
+plotDims = [2, 5];
+
+clear pdfNames
+pdfNames = {fullfile(plotResultsFolder, 'alg2D'), ...
+            fullfile(plotResultsFolder, 'alg5D')};
+
+close all
+han = relativeFValuesPlot(data, ...
+                              'DataNames', datanames, 'DataDims', funcSet.dims, ...
+                              'DataFuns', funcSet.BBfunc, 'Colors', colors, ...
+                              'PlotFuns', funcSet.BBfunc, 'PlotDims', plotDims, ...
+                              'AggregateDims', false, 'OneFigure', false, ...
+                              'Statistic', @median, 'AggregateFuns', true, ...
+                              'LineSpecification', {'-.', '-.', '-', '-', '-', '-'}, ...
+                              'LegendOption', 'show', 'MaxEval', 100);
+
+                              
+                            
+print2pdf(han, pdfNames, 1)
+
+%% zip resulting files
+
+zip([plotResultsFolder, '.zip'], fullfile(plotResultsFolder, '*.pdf'))
