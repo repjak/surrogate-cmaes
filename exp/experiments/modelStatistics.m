@@ -210,7 +210,7 @@ function a = multcomp(res, n, alpha)
   [~, ~, friedstats] = friedman(b, reps, 'off');
   c = multcompare(friedstats, 'CType','bonferroni', 'Display', 'off');
   a = finddiff(c, n, alpha);
-  a = a == n;
+  a = a == (n - 1);
 end
 
 function a = finddiff(c, n, alpha)
