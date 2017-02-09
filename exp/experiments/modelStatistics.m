@@ -96,15 +96,22 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
       end
     end
   end
-  
+
   % compute statistics
+
   stats.meanrde      = cellfun(@nanmean, rde);
   stats.stdrde       = cellfun(@nanstd,  rde);
   stats.meankendall  = cellfun(@nanmean, kendall);
   stats.stdkendall   = cellfun(@nanstd,  kendall);
   stats.meanrankmzoe = cellfun(@nanmean, rankmzoe);
   stats.stdrankmzoe  = cellfun(@nanstd,  rankmzoe);
-  
+
+  % multicomparison results
+  alpha = 0.05;
+  stats.multcomprde = multcomp(rde, nModel, alpha);
+  stats.multcompkendall = multcomp(kendall, nModel, alpha);
+  stats.multcomprankmzoe = multcomp(rankmzoe, nModel, alpha);
+
   % display results
   if dispRes
     fprintf('\n')
@@ -143,5 +150,88 @@ function dispResults(stat, func, dims)
       fprintf('\n')
     end
     fprintf('\n')
+  end
+end
+
+function [b, validreps] = cell2blockmat(stat, reps)
+% Prepare a "block" matrix for Friedman's test. Blocked variables are
+% functions and dimensions, i.e. the columns of the resulting matrix
+% correspond to model settings and rows correspond to repetitions over
+% all functions and dimensions.
+%
+% Input:
+%   stat - a performance result
+%   reps - number of repetitions for each combination of blocking variables
+%
+% Output:
+%   b         - a matrix with repetitions in rows blocked by functions
+%               and dimensions
+%   validreps - minimum number of non-NaN repetitions over all combinations
+%               of blocking variables
+  if nargin < 2
+    reps = length(stat{1, 1});
+  end
+
+  b = zeros(size(stat, 2) * size(stat, 3) * reps, size(stat, 1));
+  validreps = reps;
+
+  for m = 1:size(stat, 1)
+    for d = 1:size(stat, 3)
+      for f = 1:size(stat, 2)
+        s = stat{m, f, d};
+        validreps = min(validreps, sum(~isnan(s)));
+        for i = 1:reps
+          j = i;
+          while isnan(s(j))
+            j = j+1;
+          end
+          b((f-1)*reps + (d-1)*f*reps + j, m) = s(i);
+        end
+      end
+    end
+  end
+end
+
+function a = multcomp(res, n, alpha)
+% Compute multicompare statistics for a peformance metrics.
+%
+% Input:
+%   res   - a performance metrics results
+%   n     - a number of models
+%   alpha - a significance level
+%
+% Output:
+%   a     - a logical 1-n array with 1s on the indices of those models that
+%           significantly differ from all other (n-1) models
+  [~, reps] = cell2blockmat(res);
+  % the second pass is to remove NaNs while keeping consistent number of
+  % repetitions for blocking variables
+  b = cell2blockmat(res, reps);
+  [~, ~, friedstats] = friedman(b, reps, 'off');
+  c = multcompare(friedstats, 'CType','bonferroni', 'Display', 'off');
+  a = finddiff(c, n, alpha);
+  a = a == n;
+end
+
+function a = finddiff(c, n, alpha)
+% For each model, find the number of other models which a significant
+% difference.
+%
+% Input:
+%   c     - an output from multcompare
+%   n     - a number of models
+%   alpha - a significance level
+%
+% Output:
+%   a     - an 1xn array with a(i) giving the number of models that differ
+%           significantly from ith model
+  a = zeros(1, n);
+  for i = 1:size(c, 1)
+    if c(i, 6) <= alpha
+      i1 = int16(c(i, 1));
+      i2 = int16(c(i, 2));
+      a(i1) = a(i1) + 1;
+      a(i2) = a(i2) + 1;
+    end
   end
 end
