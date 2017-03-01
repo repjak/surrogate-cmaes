@@ -12,6 +12,7 @@ classdef OrdGpModel < Model
     predictionType       % type of prediction (f-values, PoI, EI)
     transformCoordinates % whether use transformation in the X-space
     stateVariables       % variables needed for sampling new points as CMA-ES do
+    sampleOpts           % options and settings for the CMA-ES sampling
     
     % OrdGpModel specific fields
     trainLikelihood       % negative logarithm of likelihood reached by training process
@@ -72,7 +73,7 @@ classdef OrdGpModel < Model
         if (~isfield(obj.hyp, 'cov') || isempty(obj.hyp.cov))
           error('Hyperparameters must be specified for custom covariance functions');
         end
-        if (isstr(obj.covFcn))
+        if (ischar(obj.covFcn))
           obj.covFcn = myeval(obj.covFcn);
         end
       end

@@ -151,10 +151,10 @@ seAvCluLamCol = getAlgColors(3);
 seAvUniMuCol  = getAlgColors(4);
 seAvUniLamCol = getAlgColors(5);
 
-cmaesCol   = [ 22,  22, 138];
-saacmesCol = [ 36, 140, 248];
-dtsCol     = [154, 205,  50];
-lmmCol     = [255, 225,   0];
+cmaesCol   = getAlgColors('cmaes');
+saacmesCol = getAlgColors('saacmes');
+dtsCol     = getAlgColors('dtscmaes');
+lmmCol     = getAlgColors('lmmcmaes');
 
 if (~exist(tmpFName, 'file'))
   save(tmpFName);
