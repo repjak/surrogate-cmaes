@@ -12,7 +12,7 @@ classdef ModelAssistedEC < IndividualEC
       obj@IndividualEC();
     end
 
-    function [fitness_raw, arx, arxvalid, arz, counteval, lambda, archive, surrogateStats] = runGeneration(obj, cmaesState, surrogateOpts, sampleOpts, archive, counteval, varargin)
+    function [obj, fitness_raw, arx, arxvalid, arz, counteval, lambda, archive, surrogateStats, origEvaled] = runGeneration(obj, cmaesState, surrogateOpts, sampleOpts, archive, counteval, varargin)
       % Run one generation of Model Assisted ES's evolution control
 
       fitness_raw = [];
@@ -20,6 +20,7 @@ classdef ModelAssistedEC < IndividualEC
       arxvalid = [];
       arz = [];
       surrogateStats = NaN(1, 2);
+      origEvaled = ones(1,cmaesState.lambda);
 
       % extract cmaes state variables
       xmean = cmaesState.xmean;
@@ -40,47 +41,50 @@ classdef ModelAssistedEC < IndividualEC
       nArchivePoints = myeval(surrogateOpts.evoControlTrainNArchivePoints);
       [xTrain, yTrain] = ModelAssistedEC.getRecentData(archive, nArchivePoints);
 
-      if (size(xTrain, 1) < nArchivePoints)
-        warning('not enough points (%d) for training (required %d)', size(xTrain, 1), nArchivePoints);
-        return;
+      if (size(xTrain, 1) >= nArchivePoints)
+        obj.model = obj.model.train(xTrain, yTrain, cmaesState, sampleOpts);
+
+        if (obj.model.isTrained())
+          % sample the enlarged population of size 'gamma * lambda'
+          extendSize = ceil(surrogateOpts.evoControlIndividualExtension ...
+            * lambda);
+          [xExtend, xExtendValid, zExtend] = ...
+            sampleCmaesNoFitness(sigma, extendSize, cmaesState, sampleOpts);
+
+          % calculate the model prediction for the extended population
+          yExtend = obj.getModelOutput(xExtend');
+
+          % choose lambda best points
+          [xToReeval, xToReevalValid, zToReeval] = ...
+            SurrogateSelector.choosePointsToReevaluate(...
+            xExtend, xExtendValid, zExtend, yExtend, lambda, 0);
+
+          % original-evaluate the chosen points
+          [yNew, xNew, xNewValid, zNew, counteval] = ...
+            sampleCmaesOnlyFitness(xToReeval, xToReevalValid, zToReeval, sigma, lambda, counteval, cmaesState, sampleOpts, varargin{:});
+          surrogateOpts.sampleOpts.counteval = counteval;
+
+          % calculate the models' precision
+          yPredict = obj.model.predict(xNewValid');
+          kendall = corr(yPredict, yNew', 'type', 'Kendall');
+          rmse = sqrt(sum((yPredict' - yNew).^2))/length(yNew);
+          fprintf('  model-gener.: %d preSamples, reevaluated %d pts, test RMSE = %f, Kendl. corr = %f.\n', 0, lambda, rmse, kendall);
+          surrogateStats = [rmse kendall];
+        else
+          fprintf('ModelAssistedEC.runGeneration(): model not trained, using fitness\n');
+          [yNew, xNew, xNewValid, zNew, counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), counteval, varargin{:});
+        end
+      else
+         fprintf('ModelAssistedEC.runGeneration(): not enough points (%d) for training (required %d), using fitness\n', size(xTrain, 1), nArchivePoints);
+         [yNew, xNew, xNewValid, zNew, counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), counteval, varargin{:});
       end
 
-      obj.model = obj.model.train(xTrain, yTrain, cmaesState, sampleOpts);
-
-      if (~obj.model.isTrained())
-        warning('ModelAssistedEC.runGeneration(): model not trained');
-        return;
-      end
-
-      % sample the enlarged population of size 'gamma * lambda'
-      extendSize = ceil(surrogateOpts.evoControlIndividualExtension ...
-          * lambda);
-      [xExtend, xExtendValid, zExtend] = ...
-          sampleCmaesNoFitness(sigma, extendSize, cmaesState, sampleOpts);
-
-      % calculate the model prediction for the extended population
-      yExtend = obj.getModelOutput(xExtend');
-
-      % choose lambda best points
-      [xToReeval, xToReevalValid, zToReeval] = ...
-          SurrogateSelector.choosePointsToReevaluate(...
-          xExtend, xExtendValid, zExtend, yExtend, lambda, 0);
-
-      % original-evaluate the chosen points
-      [yNew, xNew, xNewValid, zNew, counteval] = ...
-          sampleCmaesOnlyFitness(xToReeval, xToReevalValid, zToReeval, sigma, lambda, counteval, cmaesState, sampleOpts, varargin{:});
-      surrogateOpts.sampleOpts.counteval = counteval;
       fprintf('counteval: %d\n', counteval)
+
       % update the Archive
       archive = archive.save(xNewValid', yNew', countiter);
       % the obj.models' dataset will be supplemented with this
       % new points during the next training using all the xTrain
-      % calculate the models' precision
-      yPredict = obj.model.predict(xNewValid');
-      kendall = corr(yPredict, yNew', 'type', 'Kendall');
-      rmse = sqrt(sum((yPredict' - yNew).^2))/length(yNew);
-      fprintf('  model-gener.: %d preSamples, reevaluated %d pts, test RMSE = %f, Kendl. corr = %f.\n', 0, lambda, rmse, kendall);
-      surrogateStats = [rmse kendall];
 
       % save the resulting re-evaluated population as the returning parameters
       fitness_raw = [fitness_raw yNew];
