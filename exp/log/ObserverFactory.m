@@ -38,6 +38,9 @@ classdef ObserverFactory
             params.instance  = surrogateOpts.instance;
             observers{i} = DTModelSaver(params);
             ec = observers{i}.registerObservable(ec);
+          case 'maesscreenstatistics'
+            observers{i} = MAESScreenStatistics(params);
+            ec = observers{i}.registerObservable(ec);
         end
       end
 

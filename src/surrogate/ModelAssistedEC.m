@@ -6,10 +6,24 @@ classdef ModelAssistedEC < IndividualEC
   % Pre-Selection Criterion",
   % IEEE Congress on Evolutionary Computation,CEC 2003: 692-699
 
+  properties
+    stats
+    cmaesState
+    surrogateOpts
+  end
+
   methods
     function obj = ModelAssistedEC()
       % constructor
       obj@IndividualEC();
+
+      % statistics
+      obj.stats = struct( ...
+          'fmin', NaN, ...              % minimal original fitness in population
+          'rmse', NaN, ...              % RMSE of the re-evaluated point(s)
+          'kendall', NaN, ...           % Kendall's corr. of the re-evaluated point(s)
+          'nDataInRange', NaN ...      % the number of training data from the archive
+          );
     end
 
     function [obj, fitness_raw, arx, arxvalid, arz, counteval, lambda, archive, surrogateStats, origEvaled] = runGeneration(obj, cmaesState, surrogateOpts, sampleOpts, archive, counteval, varargin)
@@ -28,6 +42,14 @@ classdef ModelAssistedEC < IndividualEC
       lambda = cmaesState.lambda;
       dim = cmaesState.dim;
       countiter = cmaesState.countiter;
+
+      % initialization
+      % TODO: what other public attributes are read from outside?
+      obj.counteval = counteval;
+      obj.stats.kendall = NaN;
+      obj.stats.rmse = NaN;
+      obj.cmaesState = cmaesState;
+      obj.surrogateOpts = surrogateOpts;
 
       % create model
       obj.model = ModelFactory.createModel(surrogateOpts.modelType, surrogateOpts.modelOpts, xmean');
@@ -60,26 +82,24 @@ classdef ModelAssistedEC < IndividualEC
             xExtend, xExtendValid, zExtend, yExtend, lambda, 0);
 
           % original-evaluate the chosen points
-          [yNew, xNew, xNewValid, zNew, counteval] = ...
-            sampleCmaesOnlyFitness(xToReeval, xToReevalValid, zToReeval, sigma, lambda, counteval, cmaesState, sampleOpts, varargin{:});
+          [yNew, xNew, xNewValid, zNew, obj.counteval] = ...
+            sampleCmaesOnlyFitness(xToReeval, xToReevalValid, zToReeval, sigma, lambda, obj.counteval, cmaesState, sampleOpts, varargin{:});
           surrogateOpts.sampleOpts.counteval = counteval;
 
           % calculate the models' precision
           yPredict = obj.model.predict(xNewValid');
-          kendall = corr(yPredict, yNew', 'type', 'Kendall');
-          rmse = sqrt(sum((yPredict' - yNew).^2))/length(yNew);
-          fprintf('  model-gener.: %d preSamples, reevaluated %d pts, test RMSE = %f, Kendl. corr = %f.\n', 0, lambda, rmse, kendall);
-          surrogateStats = [rmse kendall];
+          obj.stats.kendall = corr(yPredict, yNew', 'type', 'Kendall');
+          obj.stats.rmse = sqrt(sum((yPredict' - yNew).^2))/length(yNew);
+          obj.stats.fmin = min(yNew);
+          surrogateStats = [obj.stats.rmse obj.stats.kendall];
         else
           fprintf('ModelAssistedEC.runGeneration(): model not trained, using fitness\n');
-          [yNew, xNew, xNewValid, zNew, counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), counteval, varargin{:});
+          [yNew, xNew, xNewValid, zNew, obj.counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), obj.counteval, varargin{:});
         end
       else
          fprintf('ModelAssistedEC.runGeneration(): not enough points (%d) for training (required %d), using fitness\n', size(xTrain, 1), nArchivePoints);
-         [yNew, xNew, xNewValid, zNew, counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), counteval, varargin{:});
+         [yNew, xNew, xNewValid, zNew, obj.counteval] = sampleCmaes(cmaesState, sampleOpts, lambda - size(fitness_raw, 2), obj.counteval, varargin{:});
       end
-
-      fprintf('counteval: %d\n', counteval)
 
       % update the Archive
       archive = archive.save(xNewValid', yNew', countiter);
@@ -91,6 +111,10 @@ classdef ModelAssistedEC < IndividualEC
       arx = [arx xNew];
       arxvalid = [arxvalid xNewValid];
       arz = [arz zNew];
+
+      counteval = obj.counteval;
+      
+      obj.notify_observers();
     end % function
 
     function [output, y] = getModelOutput(obj, X)

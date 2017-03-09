@@ -15,6 +15,7 @@ bbobParams = { ...
 
 surrogateParams = { ...
   'evoControl',                      { 'maes' }, ...       %  'none', 'individual', 'generation', 'restricted', 'maes'
+  'observers',                       { {'MAESScreenStatistics'} }, ...   % logging observers
   'modelType',                       { 'gp' }, ...         % 'gpop', 'rf', 'bbob'
   'evoControlPreSampleSize',         { 0 }, ...            % {0.25, 0.5, 0.75}, will be multip. by lambda
   'evoControlIndividualExtension',   { 3 }, ...            % will be multip. by lambda

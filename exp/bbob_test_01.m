@@ -192,10 +192,6 @@ function [exp_results, tmpFile, cmaes_out] = runTestsForAllInstances(opt_functio
 
     fgeneric('initialize', exp_settings.bbob_function, iinstance, datapath, opt);
 
-    % reset persistent variables in surrogateManager
-    % so that runs are independent across instances
-    clear surrogateManager;
-
     yeRestarts = [];
     cmaes_out{end+1}  = {};
     t = tic;
