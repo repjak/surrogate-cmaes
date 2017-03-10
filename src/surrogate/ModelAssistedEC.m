@@ -10,6 +10,7 @@ classdef ModelAssistedEC < IndividualEC
     stats
     cmaesState
     surrogateOpts
+    fbest
   end
 
   methods
@@ -48,6 +49,7 @@ classdef ModelAssistedEC < IndividualEC
       obj.counteval = counteval;
       obj.stats.kendall = NaN;
       obj.stats.rmse = NaN;
+      obj.fbest = NaN;
       obj.cmaesState = cmaesState;
       obj.surrogateOpts = surrogateOpts;
 
@@ -106,6 +108,9 @@ classdef ModelAssistedEC < IndividualEC
       % the obj.models' dataset will be supplemented with this
       % new points during the next training using all the xTrain
 
+      % update the current minimum
+      obj.fbest = min(archive.y);
+
       % save the resulting re-evaluated population as the returning parameters
       fitness_raw = [fitness_raw yNew];
       arx = [arx xNew];
@@ -121,14 +126,13 @@ classdef ModelAssistedEC < IndividualEC
       % overrides 'Model.getModelOutput' especially in the 'poi' branch
       % where 'target' is set exactly to 'fmin'
       [y, sd2] = obj.model.predict(X);
-      fmin = min(obj.model.dataset.y);
 
       switch lower(obj.model.predictionType)
         case 'fvalues' % mean function values
           output = y;
 
         case 'poi' % probability of improvement
-          target = fmin;
+          target = obj.fbest;
           output = getPOI(X, y, sd2, target);
       end
     end % function
