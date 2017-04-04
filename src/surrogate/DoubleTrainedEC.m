@@ -1,8 +1,6 @@
 classdef DoubleTrainedEC < EvolutionControl & Observable
 %
 % TODO:
-% [ ] remove updaterParams and use DTAdaptive_* parameters instead
-% [ ] rename 'restrictedParam' to 'origRatio'
 % [ ] in choosePointsForReevaluation() consider lowering 'mu' according to the proportion size(xExtend,2) / obj.cmaesState.lambda
 %
   properties 
@@ -11,7 +9,6 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
     cmaesState
     counteval
 
-    origRatioUpdater
     restrictedParam
     useDoubleTraining
     maxDoubleTrainIterations
@@ -42,21 +39,16 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
       obj@Observable();
       obj.model = [];
       obj.pop = [];
+      obj.counteval = 0;
       obj.surrogateOpts = surrogateOpts;
 
       % DTS parameters
       obj.restrictedParam = defopts(surrogateOpts, 'evoControlRestrictedParam', 0.1);
       obj.useDoubleTraining = defopts(surrogateOpts, 'evoControlUseDoubleTraining', true);
-      obj.maxDoubleTrainIterations = defopts(surrogateOpts, 'evoControlMaxDoubleTrainIterations', Inf);
 
       % other initializations:
       obj.acceptedModelAge = defopts(surrogateOpts, 'evoControlAcceptedModelAge', 2);
       obj.origPointsRoundFcn = str2func(defopts(surrogateOpts, 'evoControlOrigPointsRoundFcn', 'ceil'));
-
-      % Adaptive DTS parameters
-      surrogateOpts.updaterType = defopts(surrogateOpts, 'updaterType', 'none');
-      surrogateOpts.updaterParams = defopts(surrogateOpts, 'updaterParams', {});
-      obj.origRatioUpdater = OrigRatioUpdaterFactory.createUpdater(obj, surrogateOpts);
 
       % Preselection parameters
       obj.nBestPoints = defopts(surrogateOpts, 'evoControlNBestPoints', 0);
@@ -64,8 +56,9 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
       obj.validationPopSize = defopts(surrogateOpts, 'evoControlValidationPopSize', 0);
 
       % Model Archive fixed settings and initialization
-      obj.oldModelAgeForStatistics = [3:5];
-      obj.modelArchiveLength = 5;
+      obj.modelArchiveLength = defopts(surrogateOpts, 'evoControlModelArchiveLength', 5);
+      obj.oldModelAgeForStatistics = defopts(surrogateOpts, 'evoControlOldModelAgeForStatistics', ...
+          [3:min(5, obj.modelArchiveLength)]);
       obj.modelArchive = cell(1, obj.modelArchiveLength);
       obj.modelArchiveGenerations = nan(1, obj.modelArchiveLength);
       obj.modelAge = 0;
@@ -86,15 +79,7 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
           'normKendallOldModel', NaN, ... % Kendall of old model normed to [0,1]
           'ageOldModel', NaN, ...       % age of the old model which used for statistics
           'nDataOldModel', 0, ...       % the number of data points from archive for old model statistics
-          'lastUsedOrigRatio', NaN, ... % restricted param which was used (last) in the last generation
-          'adaptErr', NaN, ...     % last measured rankDiff during update()
-          'adaptGain', NaN, ...         % gain of original ratio (to be converted via min/max)
-          'adaptSmoothedErr', NaN ...   % smoothed error value used before fed into transfer function
-          );
-      obj.usedUpdaterState = struct( ...
-          'gain', NaN, ...
-          'err', NaN, ...
-          'smoothedErr', NaN ...
+          'lastUsedOrigRatio', NaN  ... % restricted param which was used (last) in the last generation
           );
     end
 
@@ -115,7 +100,6 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
 
       % prepare the final population to be returned to CMA-ES
       obj.pop = Population(lambda, dim);
-      obj.restrictedParam = obj.origRatioUpdater.update([], [], dim, lambda, obj.cmaesState.countiter, obj);
 
       obj.newModel = ModelFactory.createModel(obj.surrogateOpts.modelType, obj.surrogateOpts.modelOpts, obj.cmaesState.xmean');
 
@@ -217,22 +201,19 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
 
         % save statistics about these just used values
         obj.stats.lastUsedOrigRatio = obj.restrictedParam;
-        obj.stats.adaptGain = obj.usedUpdaterState.gain;
-        obj.stats.adaptErr = obj.usedUpdaterState.err;
-        obj.stats.adaptSmoothedErr = obj.usedUpdaterState.smoothedErr;
 
         if (nPoints > 0)
 
           % choose point(s) for re-evaluation
           reevalID = false(1, nLambdaRest);
           reevalID(~isEvaled) = obj.choosePointsForReevaluation(nPoints, ...
-              xExtend(:, ~isEvaled), modelOutput(~isEvaled), yExtendModel(~isEvaled));
+              xExtendValid(:, ~isEvaled), modelOutput(~isEvaled), yExtendModel(~isEvaled));
           xToReeval = xExtendValid(:, reevalID);
           nToReeval = sum(reevalID);
 
           % original-evaluate the chosen points
           [yNew, xNew, xNewValid, zNew, obj.counteval] = ...
-              sampleCmaesOnlyFitness(xExtend(:, reevalID), xToReeval, zExtend(:, reevalID), ...
+              sampleCmaesOnlyFitness(xExtendValid(:, reevalID), xToReeval, zExtend(:, reevalID), ...
               obj.cmaesState.sigma, nToReeval, obj.counteval, obj.cmaesState, sampleOpts, ...
               varargin{:});
           xExtendValid(:, reevalID) = xNewValid;
@@ -261,24 +242,12 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
           obj.retrainedModel = obj.model.train(xTrain, yTrain, obj.cmaesState, sampleOpts);
 
           if (obj.useDoubleTraining && obj.retrainedModel.isTrained())
-            % if internal CMA-ES restart just happend, create a new OrigRatioUpdater
-            if (~isempty(obj.origRatioUpdater.lastUpdateGeneration) ...
-                && obj.origRatioUpdater.lastUpdateGeneration > obj.cmaesState.countiter)
-              obj.origRatioUpdater = OrigRatioUpdaterFactory.createUpdater(obj, obj.surrogateOpts);
-              obj = obj.updateModelArchive(obj.retrainedModel, obj.modelAge);
-            end
+            obj = obj.updateModelArchive(obj.retrainedModel, obj.modelAge);
 
-            % origRatio adaptivity (ratio will be used for the next iteration
-            % of the while cycle or for the next generation of CMA-ES)
-            yFirstModel  = obj.model.predict(xExtendValid');
+            % update the mode-response according to the second model's prediction
             yExtendModel = obj.retrainedModel.predict(xExtendValid');
-            obj.restrictedParam = obj.origRatioUpdater.update(...
-                yFirstModel', yExtendModel', dim, lambda, obj.cmaesState.countiter, obj);
 
             % save the statistics about the new Updater's state
-            obj.usedUpdaterState.err = obj.origRatioUpdater.historyErr(obj.cmaesState.countiter);
-            obj.usedUpdaterState.gain = obj.origRatioUpdater.gain;
-            obj.usedUpdaterState.smoothedErr = obj.origRatioUpdater.historySmoothedErr(obj.cmaesState.countiter);
           end
 
         end % if (sum(isEvaled) > 0)
@@ -287,8 +256,7 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
         % iteration
         nPoints = obj.origPointsRoundFcn(nLambdaRest * obj.restrictedParam) - sum(isEvaled);
 
-        notEverythingEvaluated = (doubleTrainIteration < obj.maxDoubleTrainIterations) ...
-            && (floor(lambda * obj.restrictedParam) > sum(isEvaled));
+        notEverythingEvaluated = false;
       end % while (notEverythingEvaluated)
 
       if (~all(isEvaled))
@@ -433,7 +401,7 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
         %           ordering of values
         %         - small constant is added because of the rounding errors
         %           when numbers of different orders of magnitude are summed
-        fminDataset = min(lastModel.dataset.y);
+        fminDataset = min(lastModel.getDataset_y());
         fminModel = obj.pop.getMinModeled;
         diff = max(fminDataset - fminModel, 0);
         obj.pop = obj.pop.shiftY(1.000001*diff);
@@ -520,7 +488,6 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
 
       nLambdaRest = size(xExtend, 2);
       reevalID = false(1, nLambdaRest);
-      assert(obj.origRatioUpdater.getLastRatio() >= 0 && obj.origRatioUpdater.getLastRatio() <= 1, 'origRatio out of bounds [0,1]');
       reevalID(pointID(1:nPoints)) = true;
     end
 
