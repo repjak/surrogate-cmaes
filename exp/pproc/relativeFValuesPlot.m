@@ -23,10 +23,12 @@ function handle = relativeFValuesPlot(data, varargin)
 %                       (e.g. [1, 2, 3, 4, 5, 11, 12])
 %     'FunctionNames' - show function names in header | boolean
 %     'LegendOption'  - legend settings:
-%                         'show'  - show legend
-%                         'hide'  - do not show legend
-%                         'split' - legend splitted in first two graphs
-%                         'out'   - legend is out of the last graph
+%                         'show'    - show legend
+%                         'hide'    - do not show legend
+%                         'split'   - legend splitted in first two graphs
+%                         'out'     - legend is in one separate figure
+%                         'manyout' - legend is in multiple separated
+%                                     figures
 %     'LineSpec'      - specification of plotted lines (see help plot ->
 %                       LineSpec), to set colors use 'Colors' settings | 
 %                       cell array of string
@@ -82,7 +84,7 @@ function handle = relativeFValuesPlot(data, varargin)
   plotSet.maxEval = defopts(settings, 'MaxEval', 250);
   statistic = defopts(settings, 'Statistic', @mean);
   plotSet.oneFigure = defopts(settings, 'OneFigure', false);
-  plotSet.legendOption = defopts(settings, 'LegendOption', 'show');
+  plotSet.legendOption = lower(defopts(settings, 'LegendOption', 'show'));
   defaultLine = arrayfun(@(x) '-', 1:numOfData, 'UniformOutput', false);
   plotSet.lineSpec = defopts(settings, 'LineSpec', defaultLine);
   if length(plotSet.lineSpec) ~= numOfData
@@ -148,7 +150,8 @@ function handle = relativePlot(data_stats, settings)
   if strcmp(settings.legendOption, 'split')
     splitLegend = true;
   end
-  if strcmp(settings.legendOption, 'hide')
+  % do not display legend inside the graph
+  if any(strcmp(settings.legendOption, {'hide', 'out', 'manyout'}))
     dispLegend = false;
   end
   settings.legendLocation = 'NorthEast';
@@ -260,13 +263,11 @@ function handle = relativePlot(data_stats, settings)
   else
     
     % legend settings
-    if strcmp(settings.legendOption, 'out')
+    if any(strcmp(settings.legendOption, {'out', 'manyout'}))
       handle = cell(1, nPlots + 1);
-      legendFigNum = nPlots + 1;
       settings.legendLocation = 'EastOutside';
     else
       handle = cell(1, nPlots);
-      legendFigNum = 1;
     end
     
     % plot all functions and dimensions
@@ -276,12 +277,31 @@ function handle = relativePlot(data_stats, settings)
         handle{(d-1) * nFunsToPlot + f} = ...
           figure('Units', 'centimeters', 'Position', [1, 1, 12.5, 6]);
         plottedInAny = plottedInAny | ...
-          onePlot(relativeData, f, d, settings, dispLegend && (strcmp(settings.legendOption, 'show') || (f*d == legendFigNum)), ...
+          onePlot(relativeData, f, d, settings, dispLegend && (strcmp(settings.legendOption, 'show') || (f*d == 1)), ...
                 0, false);
       end
     end
-    if strcmp(settings.legendOption, 'out')
-      handle{legendFigNum} = soloLegend(settings.colors(plottedInAny, :), settings.datanames(plottedInAny), 2);
+    if any(strcmp(settings.legendOption, {'out', 'manyout'}))
+      % how many data are plotted
+      nToPlot = sum(plottedInAny);
+      % maximal number of data in one legend
+      if strcmp(settings.legendOption, 'out')
+        maxNamesLegend = nToPlot;
+      else
+        maxNamesLegend = 15;
+      end
+      % divide names to necessery sets
+      nLegends = ceil(nToPlot/maxNamesLegend);
+      setNumbers = floor(nToPlot/nLegends)*ones(1, nLegends);
+      remNumber = mod(nToPlot, nLegends);
+      setNumbers(1:remNumber) = setNumbers(1:remNumber) + 1;
+      % create legend id vector
+      setBounds = [0, cumsum(setNumbers)];
+      idToPlot = inverseIndex(plottedInAny);
+      for l = 1:nLegends
+        actualID = idToPlot(setBounds(l) + 1 : setBounds(l+1));
+        handle{nPlots + l} = soloLegend(settings.colors(actualID, :), settings.datanames(actualID), 2);
+      end
     end
   end
   

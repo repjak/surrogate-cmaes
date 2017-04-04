@@ -9,18 +9,32 @@ function [rankTable, ranks] = createRankingTable(data, varargin)
 %
 %     'DataDims'    - dimensions of data
 %     'DataFuns'    - functions of data
-%     'TableDims'   - dimensions chosen to count
-%     'TableFuns'   - functions chosen to count
 %     'Evaluations' - evaluations chosen to count
+%     'Rank'        - rank of resulting table or 'sum' to sum all ranks
+%     'Ranking'     - type of ranking (see example below)
+%                       'tolerant' - equal rank independence
+%                       'precise'  - equal ranks shift following ranks
+%                       'median'   - equal ranks replaced by medians of
+%                                    shifted ranks (from 'precise')
 %     'Statistic'   - statistic of data | string or handle (@mean, 
 %                       @median)
+%     'TableDims'   - dimensions chosen to count
+%     'TableFuns'   - functions chosen to count
 %
 % Output:
 %   table - table of rankings
 %   ranks - rankings for each function and dimension
 %
+% Ranking Example:
+%    values  =    [ 1    5    8   13    1    8    1   21 ]
+%
+%   'tolerant':   [ 1    2    3    4    1    3    1    5 ]
+%   'precise':    [ 1    4    5    7    1    5    1    8 ]
+%   'median':     [ 2    4   5.5   7    2   5.5   2    8 ]
+%
 % See Also:
-%   rankingTable, speedUpPlot, speedUpPlotCompare, dataReady
+%   rankingTable, createEFETable, speedUpPlot, speedUpPlotCompare, 
+%   dataReady
 
   % initialization
   rankTable = [];
@@ -37,6 +51,8 @@ function [rankTable, ranks] = createRankingTable(data, varargin)
   dims    = defopts(settings, 'TableDims', funcSet.dims);
   BBfunc  = defopts(settings, 'TableFuns', funcSet.BBfunc);
   evaluations = defopts(settings, 'Evaluations', [20 40 80]);
+  tableRank = defopts(settings, 'Rank', 1);
+  chosenRank = chooseRanking(defopts(settings, 'Ranking', 'tolerant'));
   statistic = defopts(settings, 'Statistic', @median);
   if ischar(statistic)
     if strcmp(statistic, 'quantile')
@@ -81,8 +97,9 @@ function [rankTable, ranks] = createRankingTable(data, varargin)
       for e = 1:nEvals
         thisData = cell2mat(arrayfun(@(x) data_stats{x}{f,d}(evaluations(e)), notEmptyData, 'UniformOutput', false));
         thisData = max(thisData, 1e-8 * ones(size(thisData)));
-        [~, ~, I] = unique(thisData);
-        ranks{f,d}(e, notEmptyData) = I';
+%         [~, ~, I] = unique(thisData);
+%         ranks{f,d}(e, notEmptyData) = I';
+        ranks{f,d}(e, notEmptyData) = chosenRank(thisData);
       end
     end
   end
@@ -98,32 +115,110 @@ function [rankTable, ranks] = createRankingTable(data, varargin)
     end
   end
   
-  % create first rank table
-  rankTable = createTable(rankTable, 1);
+  % create rank table
+  rankTable = createTable(rankTable, tableRank, nFunc);
 
 end
 
-function rankTable = createTable(table, rank)
+function rankTable = createTable(table, rank, nFunc)
 % Creates table of sums of rank
   
   [numOfData, nDims] = size(table);
   nEvals = size(table{1,1}, 2);
+  sumRank = strcmp(rank, 'sum');
+  avgRank = (numOfData + 1)/2;
   
   rankTable = zeros(numOfData, (nDims+1)*nEvals);
   % data
   for dat = 1:numOfData
     % dimensions
-    for d = 1:nDims
-      % evaluations
-      for e = 1:nEvals
-        % gain ranks
-        rankTable(dat, (d-1)*nEvals + e) = table{dat,d}(rank, e);
+    for d = 1:nDims      
+      % gain sum of all ranks
+      if sumRank
+        % find number of missing functions
+        missingFuns = nFunc - sum(table{dat,d});
+        % count sum of ranks and replace missing functions by the average rank
+        rankTable(dat, (d-1)*nEvals+1 : d*nEvals) = (1:numOfData)*table{dat,d} + avgRank*missingFuns;
+      % gain chosen ranks
+      else
+        % evaluations
+        for e = 1:nEvals
+          rankTable(dat, (d-1)*nEvals + e) = table{dat,d}(rank, e);
+        end
       end
     end
-    % rank sums
-    for e = 1:nEvals
-      % print only first ranks
-      rankTable(dat, nDims*nEvals + e) = sum(arrayfun(@(x) table{dat,x}(rank, e), 1:nDims));
+    % gain sum of sums of all ranks
+    if sumRank
+      rankTable(dat, nDims*nEvals + 1: end) = arrayfun(@(x) sum(rankTable(dat, x:nEvals:end)), 1:nEvals);
+    % rank sums of chosen ranks
+    else
+      for e = 1:nEvals
+        % print only chosen ranks
+        rankTable(dat, nDims*nEvals + e) = sum(arrayfun(@(x) table{dat,x}(rank, e), 1:nDims));
+      end
     end
   end
+end
+
+function chosenRank = chooseRanking(userRanking)
+% Returns appropriate existing ranking to the chosen one
+
+  switch userRanking
+    case 'precise'
+      chosenRank = @preciseRank; 
+    case 'median'
+      chosenRank = @medianRank;
+    otherwise
+      chosenRank = @tolerantRank;
+  end
+
+end
+
+function tr = tolerantRank(values)
+% Computes ranking of vector elements, where number of equal ranks does not
+% play role.
+%
+% Example:
+%   a  = [ 1    5    8   13    1    8    1   21 ];
+%   tr = tolerantRank(a);
+%   tr = [ 1    2    3    4    1    3    1    5 ]
+
+  [~, ~, tr] = unique(values);
+  tr = tr';
+
+end
+
+function pr = preciseRank(values)
+% Computes ranking of vector elements, where number of equal ranks shifts
+% the following ranks.
+%
+% Example:
+%   a  = [ 1    5    8   13    1    8    1   21 ];
+%   pr = preciseRank(a);
+%   pr = [ 1    4    5    7    1    5    1    8 ]
+
+  tr = tolerantRank(values);
+  pr = arrayfun(@(x) sum(tr < x), tr) + 1;
+
+end
+
+function mr = medianRank(values)
+% Computes ranking of vector elements, where same ranks are replaced by
+% medians of shifted ranks (from preciseRank).
+%
+% Example:
+%   a  = [ 1    5    8   13    1    8    1   21 ];
+%   mr = medianRank(a);
+%   mr = [ 2    4   5.5   7    2   5.5   2    8 ]
+
+  mr = preciseRank(values);
+  ranks = unique(mr);
+  % equal ranks replace by medians
+  if numel(ranks) < numel(mr)
+    for r = ranks
+      % average rank + actual rank - 1
+      mr(mr == r) = (sum(mr == r) + 1)/2 + r - 1;
+    end
+  end
+
 end
