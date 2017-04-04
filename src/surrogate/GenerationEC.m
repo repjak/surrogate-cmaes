@@ -73,11 +73,14 @@ classdef GenerationEC < EvolutionControl & Observable
           [obj, surrogateStats, isTrained] = obj.trainGenerationECModel(cmaesState, surrogateOpts, sampleOpts, archive, counteval);
 
           if (isTrained)
+            if ~isempty(obj.lastModel)
+              % update generation counts
+              [predictY, ~] = obj.lastModel.predict(arxvalid');
+              [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arx, arxvalid, arz, predictY, fitness_raw', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
+            end
+
             % TODO: archive the obj.lastModel...?
             obj.lastModel = obj.model;
-
-            [predictY, ~] = obj.model.predict(arxvalid');
-            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arx, arxvalid, arz, predictY, fitness_raw', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
           else
             % not enough training data :( -- continue with another
             % 'original'-evaluated generation
@@ -168,12 +171,14 @@ classdef GenerationEC < EvolutionControl & Observable
           [obj, surrogateStats, isTrained] = obj.trainGenerationECModel(cmaesState, surrogateOpts, sampleOpts, archive, counteval);
 
           if (isTrained)
+            if ~isempty(obj.lastModel)
+              % update generation counts
+              [predictY, ~] = obj.lastModel.predict(arxvalid_');
+              [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arx, arxvalid, arz, predictY, fitness_raw_', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
+            end
+
             % TODO: archive the obj.lastModel...?
             obj.lastModel = obj.model;
-
-            % adapt generation counts
-            [predictY, ~] = obj.model.predict(arxvalid_');
-            [obj.origGenerations, obj.modelGenerations] = obj.generationsUpdater.update(arx, arxvalid, arz, predictY, fitness_raw_', dim, mu, lambda, length(obj.lastOriginalGenerations)+1, obj);
 
             % leave the next generation as a model-evaluated:
             obj = obj.holdOn();
