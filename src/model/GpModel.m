@@ -18,6 +18,8 @@ classdef GpModel < Model
     stdY                  % standard deviation of Y in training set, for normalizing output
     options
     hyp
+    covBounds
+    likBounds
     meanFcn
     covFcn
     likFcn
@@ -78,15 +80,28 @@ classdef GpModel < Model
         % something more complex, like '{@covMaterniso, 3}'
         obj.covFcn  = eval(covFcn);
       end
+      % expand covariance lengthscale hyperparameter according to
+      % the dimension if ARD covariance specified and lengthscale is scalar
+      if (iscell(obj.covFcn)) covfcn = obj.covFcn{1};
+      else covfcn = obj.covFcn; end
+      if (length(obj.hyp.cov == 2) && (isequal(covfcn, @covSEard) ...
+          || isequal(covfcn, @covMaternard)))
+        obj.hyp.cov = [obj.hyp.cov(1)*ones(obj.dim, 1); obj.hyp.cov(2)];
+      end
       obj.meanFcn = str2func(defopts(obj.options, 'meanFcn', 'meanConst'));
       obj.likFcn  = str2func(defopts(obj.options, 'likFcn',  'likGauss'));
       obj.infFcn  = str2func(defopts(obj.options, 'infFcn',  'infExactCountErrors'));
       obj.options.normalizeY = defopts(obj.options, 'normalizeY', true);
 
+      % GP hyperparameter bounds
+      obj.covBounds = defopts(obj.options, 'covBounds', ...
+          [-2*ones(size(obj.hyp.cov)), 25*ones(size(obj.hyp.cov))]);
+      obj.likBounds = defopts(obj.options, 'likBounds', log([1e-6, 10]));
+
       % general model prediction options
       obj.predictionType = defopts(modelOptions, 'predictionType', 'fValues');
       obj.transformCoordinates = defopts(modelOptions, 'transformCoordinates', true);
-      obj.dimReduction = defopts(modelOptions, 'dimReduction', 1);
+      obj.dimReduction = defopts(modelOptions, 'dimReduction', 1);      % 1.0 == no dimensionality reduction
     end
 
     function nData = getNTrainData(obj)
@@ -149,7 +164,7 @@ classdef GpModel < Model
         l_cov = length(obj.hyp.cov);
 
         % lower and upper bounds
-        [lb_hyp, ub_hyp] = obj.defaultLUBounds(yTrain);
+        [lb_hyp, ub_hyp] = obj.getLUBounds(yTrain);
         lb = unwrap(lb_hyp)';
         ub = unwrap(ub_hyp)';
         opt = [];
@@ -312,8 +327,10 @@ classdef GpModel < Model
           return;
         end
         cov_median = median(opt(1:obj.dim));
-        ub(1:obj.dim) = cov_median + MAX_DIFF;
-        lb(1:obj.dim) = cov_median - MAX_DIFF;
+        % ub(1:obj.dim) = cov_median + MAX_DIFF;
+        ub(1:obj.dim) = min(max(opt(1:obj.dim)', linear_hyp(1:obj.dim)) + MAX_DIFF, ub(1:obj.dim));
+        % lb(1:obj.dim) = cov_median - MAX_DIFF;
+        lb(1:obj.dim) = max(min(opt(1:obj.dim)', linear_hyp(1:obj.dim)) - MAX_DIFF, lb(1:obj.dim));
         cmaesopt.LBounds = lb';
         cmaesopt.UBounds = ub';
         sigma(1:obj.dim) = [0.3*(ub(1:obj.dim) - lb(1:obj.dim))]';
@@ -363,13 +380,13 @@ classdef GpModel < Model
       end
     end
 
-    function [lb_hyp, ub_hyp] = defaultLUBounds(obj, yTrain)
-      % return default lower/upper bounds for GP model hyperparameter training
+    function [lb_hyp, ub_hyp] = getLUBounds(obj, yTrain)
+      % return lower/upper bounds for GP model hyperparameter training
       %
-      lb_hyp.cov = -2 * ones(size(obj.hyp.cov));
-      ub_hyp.cov = 25 * ones(size(obj.hyp.cov));
-      lb_hyp.lik = log(1e-6);
-      ub_hyp.lik = log(10);
+      lb_hyp.cov = obj.covBounds(:,1);
+      ub_hyp.cov = obj.covBounds(:,2);
+      lb_hyp.lik = obj.likBounds(1);
+      ub_hyp.lik = obj.likBounds(2);
       % set bounds for mean hyperparameter
       if (isequal(obj.meanFcn, @meanConst))
         minY = min(yTrain);

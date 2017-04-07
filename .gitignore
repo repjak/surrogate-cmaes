@@ -15,6 +15,7 @@ exp/pproc/generated_scripts
 exp/pproc/tex
 exp/pproc/scripts/html/
 exp/pproc/scripts/tmp/
+exp/pproc/tex/
 exp/pproc/compAlgMat.mat*
 *.aux
 *.bbl
