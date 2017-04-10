@@ -13,6 +13,7 @@ function modelStatTable(stats, varargin)
 %     'ModelNames'   - cell array of model names
 %     'ResultFolder' - folder containing resulting table
 %     'ShowCaption'  - show caption and print table environment | boolean
+%     'ShowDimStat'  - show statistics through functions in one dimension
 %     'TableDims'    - dimensions chosen to count
 %     'TableFuns'    - functions chosen to count
 %     'TableType'    - type of statistic table | {'meanstd'}
@@ -45,6 +46,7 @@ function modelStatTable(stats, varargin)
   defResultFolder = fullfile('exp', 'pproc', 'tex');
   resultFolder = defopts(settings, 'ResultFolder', defResultFolder);
   showCaption = defopts(settings, 'ShowCaption', true);
+  showDimStat = defopts(settings, 'ShowDimStat', false);
   
   % return only dimensions in the original data
   dimsId = ismember(dims, dataDims);
@@ -67,6 +69,8 @@ function modelStatTable(stats, varargin)
       for t = 1:numOfTables
         tableData(t).mean = stats.(['mean', mainStatNames{t}]);
         tableData(t).std  = stats.(['std',  mainStatNames{t}]);
+        tableData(t).dimmean = stats.(['dim_mean', mainStatNames{t}]);
+        tableData(t).dimstd  = stats.(['dim_std',  mainStatNames{t}]);
       end
     otherwise
       warning('There is no table type: %s. Ending table printing.')
@@ -92,7 +96,8 @@ function modelStatTable(stats, varargin)
         resultFile = fullfile(resultFolder, [mainStatNames{t}, '.tex']);
         FID = fopen(resultFile, 'w');
         % print table to tex file
-        printTableTex(FID, tableData(t), mainStatNames{t}, BBfunc, dims, modelNames, showCaption)
+        printTableTex(FID, tableData(t), mainStatNames{t}, BBfunc, dims, ...
+                      modelNames, showCaption, showDimStat)
         fclose(FID);
         fprintf('Table written to %s\n', resultFile);
       end
@@ -122,7 +127,7 @@ function dispTable(stat, func, dims, modelNames)
   end
 end
 
-function printTableTex(FID, tableData, mainStatName, func, dims, modelNames, showCaption)
+function printTableTex(FID, tableData, mainStatName, func, dims, modelNames, showCaption, showDimStat)
 % Prints table to file FID
 
   nFunc = length(func);
@@ -148,12 +153,19 @@ function printTableTex(FID, tableData, mainStatName, func, dims, modelNames, sho
     fprintf(FID, '\\hline\n');
     % print function row
     for f = 1:nFunc
-      fprintf(FID, ' f%d', func(f));
+      fprintf(FID, ' $f_{%d}$', func(f));
       fprintf(FID, '%s ', boldBestMeanStd(tableData.mean(:, f, d), tableData.std(:, f, d), boldFunc));
       fprintf(FID, '\\\\\n');
       if mod(f, 6) == 0
         fprintf(FID, '\\hline\n');
       end
+    end
+    % print mean and std in recent dimension
+    if showDimStat
+      fprintf(FID, ' {}');
+      fprintf(FID, '%s ', boldBestMeanStd(tableData.dimmean(:, d), tableData.dimstd(:, d), boldFunc));
+      fprintf(FID, '\\\\\n');
+      fprintf(FID, '\\hline\n');
     end
     fprintf(FID, '\\hline\n');
   end

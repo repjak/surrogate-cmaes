@@ -97,20 +97,28 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
     end
   end
 
-  % compute statistics
-
+  % compute basic statistics
+  
   stats.meanrde      = cellfun(@nanmean, rde);
   stats.stdrde       = cellfun(@nanstd,  rde);
   stats.meankendall  = cellfun(@nanmean, kendall);
   stats.stdkendall   = cellfun(@nanstd,  kendall);
   stats.meanrankmzoe = cellfun(@nanmean, rankmzoe);
   stats.stdrankmzoe  = cellfun(@nanstd,  rankmzoe);
+  
+  % compute dimension statistics
+  stats.dim_meanrde      = dimStat(@nanmean, rde);
+  stats.dim_stdrde       = dimStat(@nanstd,  rde);
+  stats.dim_meankendall  = dimStat(@nanmean, kendall);
+  stats.dim_stdkendall   = dimStat(@nanstd,  kendall);
+  stats.dim_meanrankmzoe = dimStat(@nanmean, rankmzoe);
+  stats.dim_stdrankmzoe  = dimStat(@nanstd,  rankmzoe);
 
   % multicomparison results
-  alpha = 0.05;
-  stats.multcomprde = multcomp(rde, nModel, alpha);
-  stats.multcompkendall = multcomp(kendall, nModel, alpha);
-  stats.multcomprankmzoe = multcomp(rankmzoe, nModel, alpha);
+%   alpha = 0.05;
+%   stats.multcomprde = multcomp(rde, nModel, alpha);
+%   stats.multcompkendall = multcomp(kendall, nModel, alpha);
+%   stats.multcomprankmzoe = multcomp(rankmzoe, nModel, alpha);
 
   % display results
   if dispRes
@@ -128,6 +136,17 @@ function stats = modelStatistics(modelFolders, func, dims, dispRes)
     end
   end
 
+end
+
+function dmStat = dimStat(stat, data)
+% compute statistic accross dimensions
+  [nSet, ~, nDim] = size(data);
+  dmStat = NaN(nSet, nDim);
+  for s = 1:nSet
+    for d = 1:nDim
+      dmStat(s, d) = stat(cell2mat(data(s, :, d)'));
+    end
+  end
 end
 
 function dispResults(stat, func, dims)
