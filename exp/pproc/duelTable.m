@@ -130,7 +130,7 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   % symbol for number of evaluations reaching the best target
   bestSymbol = '\bestFED';
   maxFunEvalsSymbol = '\maxFED';
-  maxFunEvalsString = '$250\dm$';
+  maxFunEvalsString = '$100\dm$';
   ftargetString = '10^{-8}';
   NASymbol = '---';
 
@@ -141,7 +141,7 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
     if length(s) == 1
       evaluationsString{e} = sprintf('%s', s{1});
     else
-      evaluationsString{e} = sprintf('{\\\\LARGE\\\\sfrac{%s}{%s}}', s{1}, s{2});
+      evaluationsString{e} = sprintf('{\\\\normalsize\\\\sfrac{%s}{%s}}', s{1}, s{2});
     end
   end
   
@@ -149,21 +149,22 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   fprintf(FID, '%%\\renewcommand{\\tabularxcolumn}[1]{m{#1}}\n');
 
   fprintf(FID, '\\begin{table*}[t]\n');
+  fprintf(FID, '\\footnotesize\n');
   fprintf(FID, '\\newlength{\\dueltabcolw}\n');
   fprintf(FID, '\\newlength{\\savetabcolsep}\n');
   fprintf(FID, '\\newlength{\\savecmidrulekern}\n');
   fprintf(FID, '\\setlength{\\savetabcolsep}{\\tabcolsep}\n');
   fprintf(FID, '\\setlength{\\savecmidrulekern}{\\cmidrulekern}\n');
   fprintf(FID, '\n');
-  fprintf(FID, '\\setlength{\\tabcolsep}{3pt}\n');
-  fprintf(FID, '\\setlength{\\cmidrulekern}{3pt}\n');
-  fprintf(FID, '\\setlength{\\dueltabcolw}{\\textwidth-1.85cm-%d\\tabcolsep}\n', 2*(2*numOfData+1));
+  fprintf(FID, '%%\\setlength{\\tabcolsep}{3pt}\n');
+  fprintf(FID, '%%\\setlength{\\cmidrulekern}{3pt}\n');
+  fprintf(FID, '\\setlength{\\dueltabcolw}{\\textwidth-2.1cm-%d\\tabcolsep}\n', 2*(2*numOfData+1));
   fprintf(FID, '\\setlength{\\dueltabcolw}{\\dueltabcolw/%d}\n', 2*numOfData);
   fprintf(FID, '\\centering\n');
   fprintf(FID, '%%\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}X}\n');
   fprintf(FID, '\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}m{\\dueltabcolw}}\n');
   fprintf(FID, '%%\\begin{tabularx}{\\textwidth}{ m{2cm}%s }\n', [repmat('R', 1, 2*numOfData), '']); % 'rr'
-  fprintf(FID, '\\begin{tabular}{ m{1.85cm}%s }\n', [repmat('R', 1, 2*numOfData), '']); % 'rr'
+  fprintf(FID, '\\begin{tabular}{ m{2.1cm}%s }\n', [repmat('R', 1, 2*numOfData), '']); % 'rr'
   
   for dim = 1:nDims
     if dim == 1
@@ -186,7 +187,7 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
     end
 
     % header with evaluation numbers
-    fprintf(FID, '{\\LARGE\\sfrac{\\nbFEs}{%s}} & ', bestSymbol);
+    fprintf(FID, '{\\normalsize\\sfrac{\\nbFEs}{%s}} & ', bestSymbol);
     fprintf(FID, strjoin(repmat(evaluationsString, 1, numOfData), ' & ')); % numOfData + 1
     fprintf(FID, '\\\\\n');
     fprintf(FID, '\\midrule\n');
@@ -246,7 +247,7 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
     dimString = strjoin({dimString, sprintf('$%d\\\\dm$', dims(nDims))}, ' and ');
   end
 
-  fprintf(FID, ['\\caption{A pairwise comparison of the algorithms in ', dimString, ...
+  fprintf(FID, ['\\caption[A Pairwise Comparison of Algorithms]{A pairwise comparison of the algorithms in ', dimString, ...
                 ' over the BBOB for different evaluation budgets.\n', ... 
                 'The number of wins of $i$-th algorithm against $j$-th algorithm ', ...
                 'over all benchmark functions is given in $i$-th row and $j$-th column.\n', ...
@@ -268,7 +269,7 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   fprintf(FID, '\\label{tab:duel}\n');
   fprintf(FID, '\\end{table*}\n');
 
-  fprintf(FID, '\\renewcommand{\\tabularxcolumn}[1]{p{#1}}\n');
+  fprintf(FID, '%\\renewcommand{\\tabularxcolumn}[1]{p{#1}}\n');
 end
 
 function cellOfStr = formatCell(fmt, cellOfStr)

@@ -106,7 +106,7 @@ function printTableTex(FID, stats, statsSymbol, meanRanks, dims, evaluations, ..
     if length(s) == 1
       evaluationsString{e} = s{1};
     else
-      evaluationsString{e} = sprintf('{\\\\LARGE\\\\sfrac{%s}{%s}}', s{1}, s{2});
+      evaluationsString{e} = sprintf('{\\\\Large\\\\sfrac{%s}{%s}}', s{1}, s{2});
     end
   end
 
@@ -126,7 +126,7 @@ function printTableTex(FID, stats, statsSymbol, meanRanks, dims, evaluations, ..
   end
 
   % evaluations header
-  fprintf(FID, '{\\LARGE\\sfrac{\\nbFEs}{%s}} & ', bestSymbol);
+  fprintf(FID, '{\\Large\\sfrac{\\nbFEs}{%s}} & ', bestSymbol);
   fprintf(FID, strjoin(repmat(evaluationsString, 1, nDims), ' & '));
   fprintf(FID, '\\\\\n');
   
@@ -164,7 +164,7 @@ function printTableTex(FID, stats, statsSymbol, meanRanks, dims, evaluations, ..
   fprintf(FID, '\\end{tabular}\n');
   
   % caption
-  fprintf(FID, ['\\caption{Mean rank of each algorithm over the BBOB ', ...
+  fprintf(FID, ['\\caption[A Pairwise Comparison of Algorithms]{Mean rank of each algorithm over the BBOB ', ...
                 'and the Iman-Davenport statistic ', ...
                 'for the %d considered combinations of ', ...
                 'dimensionalities and evaluation budgets.}\n'], nEvals * nDims);

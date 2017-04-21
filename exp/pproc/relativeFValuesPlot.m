@@ -313,12 +313,14 @@ function handle = relativePlot(data_stats, settings)
           handleId = (f-1) * nDimsToPlot + d;
         end
         handle{handleId} = ...
-          figure('Units', 'centimeters', 'Position', [1, 1, 12.5, 6]);
+          figure('Units', 'centimeters', 'Position', [1, 1, 12, 6]);
         % display legend indicator 
         actualDisp = dispLegend(handleId, settings.legendOption);
         % plot results
         notEmptyData = onePlot(relativeData, f, d, settings, ...
                                actualDisp, handleId*splitLegend, false);
+        %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
+        set(gca, 'Position', [0.11 0.187 0.8 0.715]);
         % check if any and which data were plotted in at least one function
         % and dimension
         plottedInAny = plottedInAny | notEmptyData;

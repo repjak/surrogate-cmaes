@@ -75,15 +75,25 @@ function print2pdf(handle, pdfname, overwrite)
     end
   end 
 
+  paperposmode = 'manual';
+  paperpos = [0 0 4.8 2.44];
+  papersize = [4.5 2.44];
+  
   % print plot to pdf
   if overwrite
     for f = 1:nFig
-      set(handle{f},'PaperPositionMode','auto')
+      set(handle{f},'PaperPositionMode', paperposmode);
+      set(handle{f}, 'PaperUnits', 'inches');
+      set(handle{f}, 'PaperPosition', paperpos);
+      set(handle{f}, 'PaperSize', papersize);
       print(handle{f},'-dpdf','-r0',pdfname{f});
     end
   else
     for f = 1:NexistPDF
-      set(handle{existingPDFs(f)},'PaperPositionMode','auto')
+      set(handle{existingPDFs(f)},'PaperPositionMode', paperposmode);
+      set(handle{existingPDFs(f)}, 'PaperUnits', 'inches');
+      set(handle{existingPDFs(f)}, 'PaperPosition', paperpos);
+      set(handle{existingPDFs(f)}, 'PaperSize', papersize);
       print('-dpdf','-r0',pdfname{existingPDFs(f)});
     end
   end
