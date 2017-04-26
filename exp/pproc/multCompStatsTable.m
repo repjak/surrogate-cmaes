@@ -110,7 +110,7 @@ function printTableTex(FID, stats, statsSymbol, meanRanks, dims, evaluations, ..
     end
   end
 
-  fprintf(FID, '\\begin{table}[t]\n');
+  fprintf(FID, '\\begin{table}\n');
   fprintf(FID, '\\centering\n');
   fprintf(FID, '\\begin{tabular}{ l%s }\n', repmat('r', 1, nDims * nEvals));
   fprintf(FID, '\\toprule\n');
@@ -164,11 +164,13 @@ function printTableTex(FID, stats, statsSymbol, meanRanks, dims, evaluations, ..
   fprintf(FID, '\\end{tabular}\n');
   
   % caption
-  fprintf(FID, ['\\caption[A Pairwise Comparison of Algorithms]{Mean rank of each algorithm over the BBOB ', ...
-                'and the Iman-Davenport statistic ', ...
-                'for the %d considered combinations of ', ...
-                'dimensionalities and evaluation budgets.}\n'], nEvals * nDims);
-  fprintf(FID, '\\label{tab:stat}\n');
+  fprintf(FID, '\\statstabcap\n');
+%   fprintf(FID, ['\\caption[A Pairwise Comparison of Algorithms]{Mean rank of each algorithm over the BBOB ', ...
+%                 'and the Iman-Davenport statistic ', ...
+%                 'for the %d considered combinations of ', ...
+%                 'dimensionalities and evaluation budgets.}\n'], nEvals * nDims);
+%   fprintf(FID, '\\label{tab:stat}\n');
+  fprintf(FID, '\\statstablab\n');
   fprintf(FID, '\\end{table}\n');
 end
 
