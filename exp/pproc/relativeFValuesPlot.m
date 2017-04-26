@@ -319,8 +319,6 @@ function handle = relativePlot(data_stats, settings)
         % plot results
         notEmptyData = onePlot(relativeData, f, d, settings, ...
                                actualDisp, handleId*splitLegend, false);
-        %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
-        set(gca, 'Position', [0.11 0.187 0.8 0.715]);
         % check if any and which data were plotted in at least one function
         % and dimension
         plottedInAny = plottedInAny | notEmptyData;
@@ -405,6 +403,9 @@ function notEmptyData = onePlot(relativeData, fId, dId, ...
         lineSpec{1}, 'LineWidth', medianLineWidth(1), 'Color', colors(1, :), ...
         'Visible', 'off');
     end
+    %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
+    set(gca, 'Position', [0.11 0.187 0.8 0.715]);
+
     hold on
     grid on
     % plot rest of lines
@@ -441,7 +442,7 @@ function notEmptyData = onePlot(relativeData, fId, dId, ...
           legIds(find(legendData, nLegendData - ceil(nLegendData/2), 'last')) = true;
       end
       if any(legIds)
-        legend(h(legIds), datanames(legIds), 'Location', settings.legendLocation)
+       legend(h(legIds), datanames(legIds), 'Location', settings.legendLocation)
       end
     end
   else
