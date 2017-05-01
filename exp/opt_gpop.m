@@ -1,4 +1,4 @@
-function [x, ilaunch, y_evals, stopflag, varargout] = opt_gpop(FUN, dim, ftarget, maxfunevals, id, varargin)
+function [x, y_evals, stopflag, varargout] = opt_gpop(FUN, dim, ftarget, maxfunevals, id, varargin)
 % minimizes FUN in dim dimensions by multistarts of gpop.
 % ftarget and maxfunevals are additional external termination conditions,
 % where at most 2 * maxfunevals function evaluations are conducted.
@@ -14,8 +14,6 @@ function [x, ilaunch, y_evals, stopflag, varargout] = opt_gpop(FUN, dim, ftarget
 
 varargout = cell(nargout);
 
-xstart = 8 * rand(dim, 1) - 4; % random start solution
-
 fDelta = 1e-8;
 
 % GPOP defaults
@@ -23,6 +21,30 @@ gpopOptions = struct( ...
   'maxFunEvals', min(1e8*dim, maxfunevals), ...
   'stopFitness', ftarget ...
 );
+
+if (nargin >= 6)
+	exppath = [varargin{1} filesep];
+else
+	exppath = '';
+end
+
+if (nargin >= 7)
+  xstart = varargin{2};
+else
+  xstart = 8 * rand(dim, 1) - 4; % random start solution
+end
+
+if (nargin >= 8)
+  datapath = varargin{3};
+else
+  datapath = exppath;
+end
+
+if (nargin >= 9)
+  iinstance = varargin{4};
+else
+  iinstance = NaN;
+end
 
 % CMA-ES defaults
 cmOptions = struct( ...
@@ -36,12 +58,6 @@ cmOptions = struct( ...
 );
 
 y_evals = [];
-
-if (nargin >= 6)
-	exppath = [varargin{1} filesep];
-else
-	exppath = '';
-end
 
 load([exppath 'scmaes_params.mat'], 'bbParamDef', 'sgParamDef', 'cmParamDef', 'exp_id', 'exppath_short', 'logDir');
 [bbParams, sgParams, cmParams] = getParamsFromIndex(id, bbParamDef, sgParamDef, cmParamDef);
@@ -65,8 +81,10 @@ end
 bbob_handlesF = benchmarks('handles');
 sgParams.modelOpts.bbob_func = bbob_handlesF{bbParams.functions(1)};
 sgParams.expFileID = [num2str(bbParams.functions(1)) '_' num2str(dim) 'D_' num2str(id)];
-
-ilaunch = 1; % no restarts
+sgParams.instance = iinstance;
+sgParams.fopt = ftarget - fDelta;
+sgParams.datapath = datapath;
+[~, sgParams.exp_id] = fileparts(sgParams.experimentPath);
 
 [x, fmin, counteval, stopflag, y_eval] = gpop(FUN, xstart, gpopOptions, cmOptions, sgParams.modelOpts);
 
