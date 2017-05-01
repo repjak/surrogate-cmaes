@@ -1,5 +1,5 @@
-exp_id = 'exp_maesEC_10_2_10_cmaes_20D';
-exp_description = 'Model Assisted Evolution Strategy (Ulmer, 2003), GP model, (2,10) CMA-ES, 3*lambda pre-selection, 2*lambda training points, POI or mean prediction, 24 functions, 15 instances, orig covfcn, gpml, 250D evals';
+exp_id = 'exp_maesEC_12_2_10_cmaes_20D';
+exp_description = 'Model Assisted Evolution Strategy (Ulmer, 2003), GP model, (2,10) CMA-ES, 3*lambda pre-selection, 2*lambda training points, POI or mean prediction, 24 functions, 15 instances, orig covfcn, gpml, 250D evals, fixed reeval and archive clearing';
 
 % BBOB/COCO framework settings
 

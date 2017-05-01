@@ -191,6 +191,7 @@ function [exp_results, tmpFile, cmaes_out] = runTestsForAllInstances(opt_functio
     fmin = Inf;
 
     fgeneric('initialize', exp_settings.bbob_function, iinstance, datapath, opt);
+
     yeRestarts = [];
     cmaes_out{end+1}  = {};
     t = tic;
