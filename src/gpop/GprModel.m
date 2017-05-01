@@ -13,6 +13,7 @@ classdef GprModel < Model
     predictionType        % type of prediction (f-values, PoI, EI)
     transformCoordinates  % transform X-space
     stateVariables        % variables needed for sampling new points as CMA-ES do
+    sampleOpts            % options and settings for the CMA-ES sampling
 
     % GprModel specific properties
     stdY                  % standard deviation of Y in training set, for output normalization
