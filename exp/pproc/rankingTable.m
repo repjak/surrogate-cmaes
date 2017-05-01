@@ -48,6 +48,7 @@ function [rankTable, ranks] = rankingTable(data, varargin)
   BBfunc  = defopts(settings, 'TableFuns', funcSet.BBfunc);
   tableRank = defopts(settings, 'Rank', 1);
   evaluations = defopts(settings, 'Evaluations', [20 40 80]);
+  sorting = defopts(settings, 'Sort', false);
   defResultFolder = fullfile('exp', 'pproc', 'tex');
   resultFile = defopts(settings, 'ResultFile', fullfile(defResultFolder, 'rankTable.tex'));
   fileID = strfind(resultFile, filesep);
@@ -57,8 +58,21 @@ function [rankTable, ranks] = rankingTable(data, varargin)
   extraFields = {'DataNames', 'ResultFile'};
   fieldID = isfield(settings, extraFields);
   createSettings = rmfield(settings, extraFields(fieldID));
-  createSettings.Mode = 'target';
+  % createSettings.Mode = 'target';
   [rankTable, ranks] = createRankingTable(data, createSettings);
+
+  if sorting
+    rn = size(rankTable, 2);
+    nEvals = length(evaluations);
+    if ~strcmp(tableRank, 'sum')
+      sortOrder = 'descend';
+    else
+      sortOrder = 'ascend';
+    end
+    [~, ind] = sort(sum(rankTable(:, (rn-nEvals+1):rn), 2), sortOrder);
+    rankTable = rankTable(ind, :);
+    datanames = datanames(ind);
+  end
   
   % print table
   switch tableFormat
