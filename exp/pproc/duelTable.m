@@ -22,6 +22,8 @@ function [dTable, ranks] = duelTable(data, varargin)
 %     'TableDims'   - dimensions chosen to count
 %     'TableFuns'   - functions chosen to count
 %     'Alpha'       - significance level for hypothesis testing
+%     'Bonferroni'  - when true, report significance results both for the
+%                     weak Bonferroni correction and for a stronger correction
 %
 % Output:
 %   rankTable - table of rankings
@@ -53,6 +55,7 @@ function [dTable, ranks] = duelTable(data, varargin)
   fileID = strfind(resultFile, filesep);
   resultFolder = resultFile(1 : fileID(end) - 1);
   alpha = defopts(settings, 'alpha', 0.05);
+  bonferroni = defopts(settings, 'Bonferroni', false);
   
   % create ranking table
   extraFields = {'DataNames', 'ResultFile'};
@@ -67,6 +70,7 @@ function [dTable, ranks] = duelTable(data, varargin)
   % if there is R-package for computation of p-values
   countPVal = exist('postHocTest', 'file');
   pValData = cell(nDim, nEvals);
+  pValDataBon = cell(nDim, nEvals);
   meanRanksData = cell(nDim, nEvals);
   dTable = cell(nDim, nEvals);
 
@@ -77,6 +81,13 @@ function [dTable, ranks] = duelTable(data, varargin)
         [pv, meanRanks] = postHocTest(fValData, 'friedman');
         pValData{d, e} = pv;
         meanRanksData{d, e} = meanRanks;
+
+        if bonferroni
+          pv = postHocTest(fValData, 'friedman', 'bonferroni');
+        else
+          pv = [];
+        end
+        pValDataBon{d, e} = pv;
       end
       rankData = cell2mat(arrayfun(@(x) ranks{x, d}(e, :), BBfunc, 'UniformOutput', false)');
       dTable{d, e} = createDuelTable(rankData);
@@ -93,7 +104,7 @@ function [dTable, ranks] = duelTable(data, varargin)
 
       FID = fopen(resultFile, 'w');
       printTableTex(FID, dTable, dims, evaluations, ...
-        datanames, pValData, meanRanksData, alpha);
+        datanames, pValData, pValDataBon, alpha);
       fclose(FID);
  
       fprintf('Table written to %s\n', resultFile);
@@ -119,7 +130,7 @@ function dt = createDuelTable(ranks)
 end
 
 function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
-  meanRanks, alpha)
+  pValsBon, alpha)
 % Prints table to file FID
 
   numOfData = length(datanames);
@@ -133,13 +144,14 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   maxFunEvalsString = '$100\dm$';
   ftargetString = '10^{-8}';
   NASymbol = '---';
+  bonferroni = false;
 
   % representation of evaluation counts as a fraction
   evaluationsString = cell(1, nEvals);
   for e = 1:nEvals
     s = strsplit(strtrim(rats(evaluations(e))), '/');
     if length(s) == 1
-      evaluationsString{e} = sprintf('%s', s{1});
+      evaluationsString{e} = sprintf('%s\\\\mbox{\\\\hspace{\\\\astwidth}}', s{1});
     else
       evaluationsString{e} = sprintf('{\\\\normalsize\\\\sfrac{%s}{%s}}', s{1}, s{2});
     end
@@ -160,6 +172,9 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   fprintf(FID, '\\setlength{\\cmidrulekern}{3pt}\n');
   fprintf(FID, '\\setlength{\\dueltabcolw}{\\textwidth-\\firstcolw-%d\\tabcolsep}\n', 2*(2*numOfData+1));
   fprintf(FID, '\\setlength{\\dueltabcolw}{\\dueltabcolw/%d}\n', 2*numOfData);
+  fprintf(FID, '\n');
+  fprintf(FID, '\\newlength{\\astwidth}\n');
+  fprintf(FID, '\\settowidth{\\astwidth}{${}^{\\ast}$}\n');
   fprintf(FID, '\\centering\n');
   fprintf(FID, '%%\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}X}\n');
   fprintf(FID, '\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}m{\\dueltabcolw}}\n');
@@ -200,23 +215,34 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
         for k = 1:nEvals
           dt = table{dim, k};
           pv = pVals{dim, k};
+          pvBon = pValsBon{dim, k};
 
           if i ~= j
-            sigdiff = dt(i, j) > dt(j, i) && pv(i, j) < alpha;
+            if isempty(pvBon)
+              % mark significance according to a powerful correction by one
+              % star
+              sigdiff1 = false;
+              sigdiff2 = dt(i, j) > dt(j, i) && pv(i, j) < alpha;
+            else
+              % one star for significance by Bonferroni correction,
+              % two stars for significance with a stronger correction
+              sigdiff1 = dt(i, j) > dt(j, i) && pv(i, j) < alpha;
+              sigdiff2 = dt(i, j) > dt(j, i) && pvBon(i, j) < alpha;
+              bonferroni = true;
+            end
+
             fprintf(FID, ' & ');
-            %           if sigdiff
-            %             fprintf(FID, '\\hfil');
-            %           end
             fprintf(FID, ' %d', dt(i, j));
 
-            if sigdiff
-              %             fprintf(FID, '\\newline');
-              %             fprintf(FID, ' \\raisebox{2pt}{\\footnotesize\\num{%.2e}}', pv(i, j));
+            if sigdiff2
               fprintf(FID, '\\makebox[0pt][l]{$^{\\ast}$}');
+            elseif sigdiff1
+              fprintf(FID, '\\makebox[0pt][l]{$^{\\ast\\ast}$}');
             end
+            fprintf(FID, '\\makebox{\\hspace{\\astwidth}}');
           else
             % symbols at diagonal
-            fprintf(FID, [' & ', NASymbol]);
+            fprintf(FID, ' & %s\\makebox{\\hspace{\\astwidth}}', NASymbol);
           end
         end
       end
