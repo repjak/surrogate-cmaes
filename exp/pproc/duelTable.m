@@ -173,7 +173,6 @@ function printTableTex(FID, table, dims, evaluations, datanames, pVals, ...
   fprintf(FID, '\\setlength{\\dueltabcolw}{\\textwidth-\\firstcolw-%d\\tabcolsep}\n', 2*(2*numOfData+1));
   fprintf(FID, '\\setlength{\\dueltabcolw}{\\dueltabcolw/%d}\n', 2*numOfData);
   fprintf(FID, '\n');
-  fprintf(FID, '\\newlength{\\astwidth}\n');
   fprintf(FID, '\\settowidth{\\astwidth}{${}^{\\ast}$}\n');
   fprintf(FID, '\\centering\n');
   fprintf(FID, '%%\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}X}\n');
