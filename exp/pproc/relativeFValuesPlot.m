@@ -287,7 +287,7 @@ function handle = relativePlot(data_stats, settings)
           subplot(nRows, 2, plotId)
           actualDisp = dispLegend(plotId, settings.legendOption);
           onePlot(relativeData, f, d, settings, actualDisp, ...
-            0, settings.omitYLabel && omitYLabelStatus);
+            0, settings.omitYLabel && omitYLabelStatus, false);
         end
       end
     end
@@ -308,6 +308,8 @@ function handle = relativePlot(data_stats, settings)
     handleId = 1;
     for f = 1:nFunsToPlot
       for d = 1:nDimsToPlot
+        omitYLabelStatus = ~logical(mod(f, 3) == 1);
+        omitXLabelStatus = ~(f == 22 | f == 23 | f == 24);
         % increase handleId if empty plots are not omitted
         if ~settings.omitEmptyPlots
           handleId = (f-1) * nDimsToPlot + d;
@@ -318,7 +320,12 @@ function handle = relativePlot(data_stats, settings)
         actualDisp = dispLegend(handleId, settings.legendOption);
         % plot results
         notEmptyData = onePlot(relativeData, f, d, settings, ...
-                               actualDisp, handleId*splitLegend, false);
+                               actualDisp, handleId*splitLegend, ...
+                               settings.omitYLabel & omitYLabelStatus, omitXLabelStatus);
+
+        %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
+        set(gca, 'Position', [0.11 0.187 0.8 0.715]);
+
         % check if any and which data were plotted in at least one function
         % and dimension
         plottedInAny = plottedInAny | notEmptyData;
@@ -358,7 +365,7 @@ function handle = relativePlot(data_stats, settings)
 end
 
 function notEmptyData = onePlot(relativeData, fId, dId, ...
-                 settings, dispLegend, splitLegendStatus, omitYLabel)
+                 settings, dispLegend, splitLegendStatus, omitYLabel, omitXLabel)
 % Plots one scaled graph 
 %
 % Note: Omitting y-label is currently enabled. To change this status
@@ -403,6 +410,7 @@ function notEmptyData = onePlot(relativeData, fId, dId, ...
         lineSpec{1}, 'LineWidth', medianLineWidth(1), 'Color', colors(1, :), ...
         'Visible', 'off');
     end
+
     %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
     set(gca, 'Position', [0.11 0.187 0.8 0.715]);
 
@@ -443,11 +451,15 @@ function notEmptyData = onePlot(relativeData, fId, dId, ...
       end
       if any(legIds)
        legend(h(legIds), datanames(legIds), 'Location', settings.legendLocation)
+       msgbox('Legend is being written');
       end
     end
   else
     warning('Function %d dimension %d has no data available.', BBfunc(fId), dims(dId))
   end
+
+  %set(gca, 'Position', [0.1300 0.1100 0.7750 0.8150]);
+  set(gca, 'Position', [0.11 0.187 0.8 0.715]);
 
   % make title
   titleString = '';
@@ -461,11 +473,14 @@ function notEmptyData = onePlot(relativeData, fId, dId, ...
     titleString = [titleString, ' ', num2str(dims(dId)),'D'];
   end
   title(titleString)
-  xlabel('Number of evaluations / D')
-  if ~omitYLabel
+  if ~omitXLabel || (aggFuns || aggDims)
+      xlabel('Number of evaluations / D')
+  end
+
+  if ~omitYLabel || aggDims || aggFuns
     ylabel('\Delta_f^{log}')
   end
-  
+
   hold off
 
 end
