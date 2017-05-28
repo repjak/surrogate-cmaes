@@ -10,6 +10,7 @@ classdef (Abstract) Model
     shiftMean            % vector of the shift in the X-space
     shiftY               % shift in the f-space
     predictionType       % type of prediction (f-values, PoI, EI)
+    lcbWeight            % weight for lcb prediction
     transformCoordinates % whether use transformation in the X-space
     stateVariables       % variables needed for sampling new points as CMA-ES do
     sampleOpts           % options and settings for the CMA-ES sampling
@@ -223,7 +224,7 @@ classdef (Abstract) Model
           output = getEI(X, y, sd2, fmin);
           
         case 'lcb' % lower confidence bound
-          output = y - 2 * sqrt(sd2);
+          output = y - obj.lcbWeight * sqrt(sd2);
         
         case 'fpoi' % PoI scaled using function values
           target = fmin - 0.05 * (fmax - fmin);

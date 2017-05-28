@@ -10,6 +10,7 @@ classdef GpModel < Model
     shiftMean             % vector of the shift in the X-space
     shiftY = 0;           % shift in the f-space
     predictionType        % type of prediction (f-values, PoI, EI)
+    lcbWeight             % weight for lcb prediction
     transformCoordinates  % transform X-space
     stateVariables        % variables needed for sampling new points as CMA-ES do
     sampleOpts            % options and settings for the CMA-ES sampling
@@ -104,6 +105,7 @@ classdef GpModel < Model
 
       % general model prediction options
       obj.predictionType = defopts(modelOptions, 'predictionType', 'fValues');
+      obj.lcbWeight = defopts(modelOptions, 'lcbWeight', 2);
       obj.transformCoordinates = defopts(modelOptions, 'transformCoordinates', true);
       obj.dimReduction = defopts(modelOptions, 'dimReduction', 1);      % 1.0 == no dimensionality reduction
     end

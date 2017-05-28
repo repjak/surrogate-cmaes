@@ -11,6 +11,7 @@ classdef GprModel < Model
     shiftMean             % vector of the shift in the X-space
     shiftY = 0;           % shift in the f-space
     predictionType        % type of prediction (f-values, PoI, EI)
+    lcbWeight             % weight for lcb prediction
     transformCoordinates  % transform X-space
     stateVariables        % variables needed for sampling new points as CMA-ES do
     sampleOpts            % options and settings for the CMA-ES sampling
@@ -67,6 +68,7 @@ classdef GprModel < Model
       obj.options.normalizeX = defopts(obj.options, 'normalizeX', true);
       obj.transformCoordinates = defopts(modelOptions, 'transformCoordinates', true);
       obj.predictionType = defopts(modelOptions, 'predictionType', 'fValues');
+      obj.lcbWeight = defopts(modelOptions, 'lcbWeight', 2);
       obj.gprMdl = [];
       obj.logModel = 0;
       obj.nErrors = 0;

@@ -13,7 +13,7 @@ function [xbest, fmin, counteval, stopflag, y_eval] = gpop(fitfun, xstart, gpopO
 % @gpopOpts
 %   'nc'                  -- number of training points selected by euclidean distance from 'xbest'
 %   'nr'                  -- number of training points selected by evaluation time
-%   'meritParams'         -- parameters that define surrogate 'merit' functions
+%   'modelParams'         -- an array of model parameters
 %   'tolXPrtb'            -- tolerance for x improvement before a perturbation is added to 'xbest'
 %   'prtb'                -- standard deviation of Gaussian perturbation added on stagnation
 %   'maxFunEvals'         -- maximum number of fitness evaluations
@@ -24,7 +24,7 @@ function [xbest, fmin, counteval, stopflag, y_eval] = gpop(fitfun, xstart, gpopO
 %   'funHistLen'          -- length of recorded fitness history
 %   'logModulo'           -- log inner variables every nth iteration
 % @cmOpts                 -- CMA-ES options
-% @modelOpts              -- GP model options
+% @modelOpts              -- GP model options common to all models
 %
 % Reference: D. Buche, N. N. Schraudolph and P. Koumoutsakos,
 % "Accelerating Evolutionary Algorithms With Gaussian Process Fitness Function Models",
@@ -37,7 +37,6 @@ dim = size(xstart, 1);
 opts = struct(...
   'nc', '5 * dim', ...
   'nr', '5 * dim', ...
-  'meritParams', [0 1 2 4], ...
   'tolXPrtb', 1e-8, ...
   'prtb', 1e-2, ...
   'maxFunEvals', 1e4, ...
@@ -48,6 +47,17 @@ opts = struct(...
   'funHistLen', 2, ...
   'logModulo', 1 ...
 );
+
+if isempty(gpopOpts) || ~isfield(gpopOpts, 'modelParams') || isempty(gpopOpts.modelParams)
+  modelParams = { ...
+    struct('predictionType', 'fvalues'), ...
+    struct('predictionType', 'lcb', 'lcbWeight', 1), ...
+    struct('predictionType', 'lcb', 'lcbWeight', 2), ...
+    struct('predictionType', 'lcb', 'lcbWeight', 4), ...
+  };
+else
+  modelParams = gpopOpts.modelParams;
+end
 
 for fname = fieldnames(gpopOpts)'
   opts.(fname{1}) = gpopOpts.(fname{1});
@@ -63,6 +73,8 @@ iterPrtb = 0;
 d = NaN(dim, 1);
 y_eval = [];
 surrogateStats = NaN(1, 2); % model's rmse, Kendall corr.
+nModels = length(modelParams);
+models = cell(1, nModels);
 
 % eval string parameters
 for fname = fieldnames(opts)'
@@ -74,13 +86,21 @@ stopflag = stop_criteria();
 if isempty(stopflag)
   countiter = countiter + 1;
 
-  model = GprModel(modelOpts, ones(1, dim));
+  for i = 1:nModels
+    % merge input opts with surrogate model opts
+    params = modelParams{i};
+    for fieldname = fieldnames(modelOpts)'
+      params.(fieldname{:}) = modelOpts.(fieldname{:});
+    end
+
+    models{i} = GprModel(params, ones(1, dim));
+  end
   archive = GpopArchive(dim);
 
-  % initial search for nc / 2 points with (2,10)-CMA-ES
+  % initial search for nc / 2 points with CMA-ES
   cmOptsInit = cmOpts;
-  cmOptsInit.ParentNumber = 2;
-  cmOptsInit.PopSize = 10;
+  %cmOptsInit.ParentNumber = 2;
+  %cmOptsInit.PopSize = 10;
   cmOptsInit.MaxFunEvals = ceil(opts.nc / 2);
 
   [xCm1, fminCm1, countevalCm1, stopflagCm1, outCm1, besteverCm1, y_evalCm1] = s_cmaes(fitfun, xstart, 8/3, cmOptsInit);
@@ -115,47 +135,53 @@ while isempty(stopflag)
   badCondIdx = max(d) ./ d >= 1e6;
   d(badCondIdx) = max(d) / 1e5;
 
-  % train the model
-  model = model.trainModel(trainingX, trainingY, xbest', countiter);
+  % restrict CMA-ES search area to xbest's neighbourhood
+  [lb, ub] = searchBounds(xbest, d, -5 * ones(size(xbest)), 5 * ones(size(xbest)));
+  cmOpts.LBounds = lb;
+  cmOpts.UBounds = ub;
+  sigma = [];
 
-  if model.isTrained()
-    % restrict CMA-ES search area to xbest's neighbourhood
-    [lb, ub] = searchBounds(xbest, d, -5 * ones(size(xbest)), 5 * ones(size(xbest)));
-    cmOpts.LBounds = lb;
-    cmOpts.UBounds = ub;
-    sigma = [];
+  res = zeros(dim+1, nModels);
 
-    % optimize all variants of model prediction with parallel workers
-    meritParams = opts.meritParams;
-    parfor i = 1:length(meritParams)
-      % minimize surrogate function
-      fun = @(x) surrogateFcn(x, meritParams(i), model);
+  % optimize the models
+  for i = 1:nModels
+    model = models{i};
+    model = model.trainModel(trainingX, trainingY, xbest', countiter);
+
+    if model.isTrained()
+      switch model.predictionType
+        case {'ei', 'poi'}
+          fun = @(x) -model.getModelOutput(x');
+        otherwise
+          fun = @(x) model.getModelOutput(x');
+      end
+
       [xCm, fminCm, ~, stopflagCm, ~, besteverCm, ~] = s_cmaes(fun, xbest, sigma, cmOpts);
       res(:, i) = [besteverCm.x; besteverCm.f];
-    end % parfor
 
-    % evaluate model optima and save new solutions to archive
-    for r = res
-      x = r(1:end-1,:);
-      yPred = r(end,:);
-      if (~archive.isMember(x', opts.tolXPrtb))
-        y = eval_fitness(x);
-        sol = [sol [x; yPred; y]];
-        stopflag = stop_criteria();
-        if ~isempty(stopflag)
-          if ~isempty(sol)
-            [rmse, kendall] = modelStats(sol(end-1,:), sol(end,:));
-            surrogateStats = [rmse, kendall];
-          end
-          y_eval = [y_eval; fmin counteval surrogateStats];
-          log_state();
-          return;
+      % evaluate model optima and save new solutions to archive
+      for r = res
+        x = r(1:end-1,:);
+        yPred = r(end,:);
+        if (~archive.isMember(x', opts.tolXPrtb))
+          y = eval_fitness(x);
+          sol = [sol [x; yPred; y]];
+          stopflag = stop_criteria();
+          if ~isempty(stopflag)
+            if ~isempty(sol)
+              [rmse, kendall] = modelStats(sol(end-1,:), sol(end,:));
+              surrogateStats = [rmse, kendall];
+            end
+            y_eval = [y_eval; fmin counteval surrogateStats];
+            log_state();
+            return;
+          end % if
+        else
+          disp(['Solution ' num2str(x') ' already in archive within tolerance ' num2str(opts.tolXPrtb)]);
         end % if
-      else
-        disp(['Solution ' num2str(x') ' already in archive within tolerance ' num2str(opts.tolXPrtb)]);
-      end % if
-    end % for
-  end % if
+      end % for
+    end % if
+  end % for
 
   if isempty(sol)
     % no solution found or model not trained
@@ -227,21 +253,6 @@ end % while
       'VariableNames', varnames);
     disp(t);
   end % function
-end % function
-
-
-function y = surrogateFcn(x, a, model)
-  [mu, s2] = model.modelPredict(x');
-  y = fmerit(mu, s2, a);
-end % function
-
-
-function y = fmerit(mu, s2, a)
-  % merit function that adds a density measure to the predicted value
-  % @mu       -- column vector of predicted means
-  % @s2       -- column vector of predicted output variances
-  % @a        -- scale parameter
-  y = mu - a * sqrt(s2);
 end % function
 
 
