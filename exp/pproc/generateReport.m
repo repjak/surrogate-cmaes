@@ -63,7 +63,9 @@ function reportFile = generateReport(expFolder, varargin)
   dims     = cell(nFolders, 1);
   % evaluations and quantiles to show
   showEval     = [25, 50, 100, 200];
+  maxEval      = 250;
   showQuantile = [0.25, 0.5, 0.75];
+  sorting      = 1;
   % load data
   for f = 1 : nFolders
     % parametrized experiment
@@ -181,8 +183,11 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '\n');
   fprintf(FID, '%% evaluation settings\n');
   fprintf(FID, 'showEval = %s;\n', printStructure(showEval, FID, 'Format', 'value'));
+  fprintf(FID, 'maxEval = %d;\n', maxEval);
   fprintf(FID, '%% quantile settings\n');
   fprintf(FID, 'showQuantile = %s;\n', printStructure(showQuantile, FID, 'Format', 'value'));
+  fprintf(FID, '%% sort ranking tables\n');
+  fprintf(FID, 'sorting = 1;\n');
   fprintf(FID, '\n');
   fprintf(FID, '%% load algorithms for comparison\n');
   fprintf(FID, '[algData, algNames, algColors] = loadCompAlg(fullfile(''exp'', ''pproc'', ''compAlgMat.mat''), funcSet);\n');
@@ -234,6 +239,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                                  ''DataFuns'', funcSet.BBfunc, ...\n');
   fprintf(FID, '                                  ''DataNames'', expAlgNames, ...\n');
   fprintf(FID, '                                  ''Evaluations'', showEval, ...\n');
+  fprintf(FID, '                                  ''Sort'', sorting, ...\n');
   fprintf(FID, '                                  ''Ranking'', ''tolerant'');\n');
   fprintf(FID, '\n');
   fprintf(FID, '%%%%\n');
@@ -252,6 +258,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                                     ''DataFuns'', funcSet.BBfunc, ...\n');
   fprintf(FID, '                                     ''DataNames'', expAlgNames, ...\n');
   fprintf(FID, '                                     ''Evaluations'', showEval, ...\n');
+  fprintf(FID, '                                     ''Sort'', sorting, ...\n');
   fprintf(FID, '                                     ''Rank'', ''sum'', ...\n');
   fprintf(FID, '                                     ''Ranking'', ''median'');\n');
   fprintf(FID, '\n');
@@ -302,6 +309,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                            ''DataDims'', funcSet.dims, ...\n');
   fprintf(FID, '                            ''DataFuns'', funcSet.BBfunc, ...\n');
   fprintf(FID, '                            ''PlotFuns'', f, ...\n');
+  fprintf(FID, '                            ''MaxEval'', maxEval, ...\n');
   fprintf(FID, '                            ''AggregateDims'', false, ...\n');
   fprintf(FID, '                            ''AggregateFuns'', false, ...\n');
   fprintf(FID, '                            ''DataNames'', expAlgNames, ...\n');
@@ -328,6 +336,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                                 ''DataFuns'', funcSet.BBfunc, ...\n');
   fprintf(FID, '                                 ''DataNames'', datanames, ...\n');
   fprintf(FID, '                                 ''Evaluations'', showEval, ...\n');
+  fprintf(FID, '                                 ''Sort'', sorting, ...\n');
   fprintf(FID, '                                 ''Ranking'', ''tolerant'');\n');
   fprintf(FID, '  \n');
   fprintf(FID, '  %%%%\n');
@@ -347,6 +356,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                                    ''DataNames'', datanames, ...\n');
   fprintf(FID, '                                    ''Evaluations'', showEval,...\n');
   fprintf(FID, '                                    ''Rank'', ''sum'', ...\n');
+  fprintf(FID, '                                    ''Sort'', sorting, ...\n');
   fprintf(FID, '                                    ''Ranking'', ''median'');\n');
   fprintf(FID, '  \n');
   fprintf(FID, '  %%%%\n');
@@ -396,6 +406,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '                              ''DataDims'', funcSet.dims, ...\n');
   fprintf(FID, '                              ''DataFuns'', funcSet.BBfunc, ...\n');
   fprintf(FID, '                              ''PlotFuns'', f, ...\n');
+  fprintf(FID, '                              ''MaxEval'', maxEval, ...\n');
   fprintf(FID, '                              ''AggregateDims'', false, ...\n');
   fprintf(FID, '                              ''AggregateFuns'', false, ...\n');
   fprintf(FID, '                              ''DataNames'', datanames, ...\n');
@@ -413,6 +424,7 @@ function reportFile = generateReport(expFolder, varargin)
   fprintf(FID, '  han = relativeFValuesPlot(data, ...\n');
   fprintf(FID, '                          ''DataDims'', funcSet.dims, ...\n');
   fprintf(FID, '                          ''DataFuns'', funcSet.BBfunc, ...\n');
+  fprintf(FID, '                          ''MaxEval'', maxEval, ...\n');
   fprintf(FID, '                          ''AggregateDims'', false, ...\n');
   fprintf(FID, '                          ''AggregateFuns'', true, ...\n');
   fprintf(FID, '                          ''DataNames'', datanames, ...\n');
