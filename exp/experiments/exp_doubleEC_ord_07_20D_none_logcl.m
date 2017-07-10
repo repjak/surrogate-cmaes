@@ -1,4 +1,4 @@
-exp_id = 'exp_doubleEC_ord_07_20D';
+exp_id = 'exp_doubleEC_ord_07_20D_none_logcl';
 exp_description = 'Surrogate CMA-ES model, ordinal GP, covSE, [none, logcluster], doubly-trained EC, 24 functions, 15 instances, 20D, 25FE/D (source code revised)';
 
 % BBOB/COCO framework settings
