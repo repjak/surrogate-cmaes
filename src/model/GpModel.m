@@ -100,12 +100,32 @@ classdef GpModel < Model
       % GP hyperparameter bounds
       obj.covBounds = defopts(obj.options, 'covBounds', ...
           [-2*ones(size(obj.hyp.cov)), 25*ones(size(obj.hyp.cov))]);
+      % expand also covariance Bounds if they do not respect ARD covariance
+      if ((size(obj.covBounds,1) == 2) && (isequal(covfcn, @covSEard) ...
+          || isequal(covfcn, @covMaternard)))
+        obj.covBounds = [repmat(obj.covBounds(1,:), obj.dim, 1); obj.covBounds(2:end,:)];
+      end
       obj.likBounds = defopts(obj.options, 'likBounds', log([1e-6, 10]));
+
+      % wrap the starting point for hyperparameters inside corresponding bounds
+      obj.hyp.cov = min(obj.covBounds(:, 2), max(obj.covBounds(:,1), obj.hyp.cov));
+      obj.hyp.lik = min(obj.likBounds(2), max(obj.likBounds(1), obj.hyp.lik));
 
       % general model prediction options
       obj.predictionType = defopts(modelOptions, 'predictionType', 'fValues');
       obj.transformCoordinates = defopts(modelOptions, 'transformCoordinates', true);
       obj.dimReduction = defopts(modelOptions, 'dimReduction', 1);      % 1.0 == no dimensionality reduction
+    end
+
+    function obj = clone(obj, obj2)
+    % Take all fields except function handles from obj2
+      fnames = fieldnames(obj2);
+      for i = 1:length(fnames)
+        ff = fnames{i};
+        if (isempty(strfind(ff, 'Fcn')))
+          obj.(ff) = obj2.(ff);
+        end
+      end
     end
 
     function nData = getNTrainData(obj)
@@ -124,30 +144,35 @@ classdef GpModel < Model
 
       assert(size(xMean,1) == 1, '  GpModel.train(): xMean is not a row-vector.');
       obj.trainMean = xMean;
-      obj.dataset.X = X;
-      obj.dataset.y = y;
+      if (~isempty(X) && ~isempty(y))
+        obj.dataset.X = X;
+        obj.dataset.y = y;
+      end
 
       % normalize y if specified, @meanZero, or if large y-scale
       % (at least for CMA-ES hyperparameter optimization)
       if (~obj.options.normalizeY ...
-          && (isequal(obj.meanFcn, @meanZero) || (max(y) - min(y)) > 1e4))
+          && (isequal(obj.meanFcn, @meanZero) || (max(obj.dataset.y) - min(obj.dataset.y)) > 1e4))
         fprintf(2, 'Y-Normalization is switched ON for @meanZero covariance function of large Y-scale.\n');
         obj.options.normalizeY = true;
       end
       if (obj.options.normalizeY)
-        obj.shiftY = mean(y);
-        obj.stdY  = std(y);
-        yTrain = (y - obj.shiftY) / obj.stdY;
+        obj.shiftY = mean(obj.dataset.y);
+        obj.stdY  = std(obj.dataset.y);
+        yTrain = (obj.dataset.y - obj.shiftY) / obj.stdY;
       else
         obj.shiftY = 0;
         obj.stdY  = 1;
-        yTrain = y;
+        yTrain = obj.dataset.y;
       end
 
       % set the mean hyperparameter if is needed
-      if (~isequal(obj.meanFcn, @meanZero))
+      if (isequal(obj.meanFcn, @meanConst))
         obj.hyp.mean = median(yTrain);
+      elseif (isequal(obj.meanFcn, @meanLinear))
+        obj.hyp.mean = median(yTrain) / obj.dim * ones(obj.dim,1);
       end
+      
 
       alg = obj.options.trainAlgorithm;
 
@@ -161,17 +186,24 @@ classdef GpModel < Model
 
       elseif (strcmpi(alg, 'fmincon') ...
               || strcmp(alg, 'cmaes'))
-        % gp() with linearized version of the hyper-parameters
-        f = @(par) linear_gp(par, obj.hyp, obj.infFcn, obj.meanFcn, obj.covFcn, obj.likFcn, obj.getDataset_X(), yTrain);
+        % lower and upper bounds
+        [lb_hyp, ub_hyp] = obj.getLUBounds(yTrain, obj.hyp);
+        lb = unwrap(lb_hyp)';
+        ub = unwrap(ub_hyp)';
+        opt = [];
 
         linear_hyp = unwrap(obj.hyp)';
         l_cov = length(obj.hyp.cov);
 
-        % lower and upper bounds
-        [lb_hyp, ub_hyp] = obj.getLUBounds(yTrain);
-        lb = unwrap(lb_hyp)';
-        ub = unwrap(ub_hyp)';
-        opt = [];
+        % if some parameters are held constant
+        const_hyp_idx = (lb == ub);
+        linear_hyp_start = linear_hyp;
+        linear_hyp = linear_hyp(~const_hyp_idx);
+        lb = lb(~const_hyp_idx);
+        ub = ub(~const_hyp_idx);
+
+        % gp() with linearized version of the hyper-parameters
+        f = @(par) linear_gp(par, obj.hyp, obj.infFcn, obj.meanFcn, obj.covFcn, obj.likFcn, obj.getDataset_X(), yTrain, linear_hyp_start, const_hyp_idx);
 
         if (strcmpi(alg, 'fmincon'))
           [obj, opt, trainErr] = obj.trainFmincon(linear_hyp, obj.getDataset_X(), yTrain, lb, ub, f);
@@ -190,6 +222,8 @@ classdef GpModel < Model
           end
         end
 
+        linear_hyp_start(~const_hyp_idx) = opt;
+        opt = linear_hyp_start;
         obj.trainGeneration = generation;
         obj.hyp = rewrap(obj.hyp, opt);
 
@@ -268,7 +302,7 @@ classdef GpModel < Model
       trainErr = false;
       opt = [];
 
-      [fminconOpts, nonlnc] = obj.defaultFminconOpts();
+      [fminconOpts, nonlnc] = obj.defaultFminconOpts(lb, ub);
       try
         initial = f(linear_hyp');
       catch err
@@ -276,7 +310,7 @@ classdef GpModel < Model
       end
       if isnan(initial)
         % the initial point is not valid
-        % fprintf('  GpModel.train(): fmincon -- initial point is not valid.\n');
+        fprintf('  GpModel.train(): fmincon -- initial point is not valid.\n');
         trainErr = true;
       else
         % training itself
@@ -360,7 +394,7 @@ classdef GpModel < Model
     end
 
 
-    function [opts, nonlnc] = defaultFminconOpts(obj)
+    function [opts, nonlnc] = defaultFminconOpts(obj, lb, ub)
       % return the optimization parameters for fmincon()
       %
       opts = optimset('fmincon');
@@ -374,7 +408,7 @@ classdef GpModel < Model
         );
       covarianceDim = length(obj.hyp.cov) - 1;
       if (covarianceDim > 1)
-        % ARD
+        % ARD or a parameter with fixed value
         opts = optimset(opts, 'Algorithm', 'interior-point');
         nonlnc = @nonlincons;
       else
@@ -384,7 +418,7 @@ classdef GpModel < Model
       end
     end
 
-    function [lb_hyp, ub_hyp] = getLUBounds(obj, yTrain)
+    function [lb_hyp, ub_hyp] = getLUBounds(obj, yTrain, startHyp)
       % return lower/upper bounds for GP model hyperparameter training
       %
       lb_hyp.cov = obj.covBounds(:,1);
@@ -397,6 +431,22 @@ classdef GpModel < Model
         maxY = max(yTrain);
         lb_hyp.mean = minY - 2*(maxY - minY);
         ub_hyp.mean = minY + 2*(maxY - minY);
+      elseif (isequal(obj.meanFcn, @meanLinear))
+        min_y = min(yTrain);
+        max_y = max(yTrain);
+        lb_hyp.mean = zeros(size(startHyp.mean));
+        ub_hyp.mean = zeros(size(startHyp.mean));
+        for i=1:obj.dim
+          % max_x -- max of each dimension from dataset_X
+          dataset_X = obj.getDataset_X();
+          max_x = max(dataset_X(:,i));
+          min_x = min(dataset_X(:,i));
+          max_tg = (max_y - min_y) / (max_x - min_x);
+          lb_hyp.mean(i) = -5 * max_tg;
+          ub_hyp.mean(i) = 5 * max_tg;
+        end
+        lb_hyp.mean = min(lb_hyp.mean, startHyp.mean);
+        ub_hyp.mean = max(ub_hyp.mean, startHyp.mean);
       end
     end
   end
@@ -415,10 +465,16 @@ function [post, nlZ, dnlZ] = infExactCountErrors(hyp, mean, cov, lik, x, y)
   end
 end
 
-function [nlZ, dnlZ] = linear_gp(linear_hyp, s_hyp, inf, mean, cov, lik, x, y)
+function [nlZ, dnlZ] = linear_gp(linear_hyp, s_hyp, inf, mean, cov, lik, x, y, linear_hyp_start, const_hyp_idx)
+  % extend the vector of parameters by constant (i.e. not optimized) elements
+  % taken from the vector of initial values
+  linear_hyp_start(~const_hyp_idx) = linear_hyp;
+  linear_hyp = linear_hyp_start;
+
   hyp = rewrap(s_hyp, linear_hyp');
   [nlZ, s_dnlZ] = gp(hyp, inf, mean, cov, lik, x, y);
   dnlZ = unwrap(s_dnlZ)';
+  dnlZ = dnlZ(~const_hyp_idx);
 end
 
 function [c, ceq] = nonlincons(x)
