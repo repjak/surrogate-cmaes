@@ -6,7 +6,7 @@ X = linspace(-xl, xl, density);
 phi = (1 + sqrt(5))/2;
 markerSize = 20;
 fontSize = 20;
-dp_path = '/home/jakub/Documents/itat_slides/img/';
+dp_path = '/home/jakub/Documents/vpdd2017active/img/';
 
 handle = figure('Units', 'inches');
 
@@ -42,11 +42,29 @@ hyp2 = minimize(hyp, @gp, -100, @infExact, [], covfunc, likfunc, xs', ys');
 %K2 = feval(covfunc{:}, hyp2.cov, X');
 [ymu ys2] = gp(hyp2, @infExact, meanfunc, covfunc, likfunc, xs', ys', X');
 
-fill([X, fliplr(X)], [ymu' + sqrt(ys2') fliplr(ymu' - sqrt(ys2'))], ...
-  0.9*[1 1 1], 'EdgeColor', [1 1 1]);
-hold on;
 
-%confplot(X, ymu, sqrt(ys2));
+plot(X, ymu, 'k-');
+
+hold on;
+plot(xs, ys, 'r.', 'MarkerSize', markerSize);
+plot(X, ymu - sqrt(ys2), 'r-');
+
+ylim(yl);
+
+set(gca, 'xtick', []);
+set(gca, 'ytick', []);
+xlabel('');
+ylabel('');
+print(handle, '-dpdf', '-r1500', fullfile(dp_path, 'gp_lcb'));
+hold off;
+
+%%
+
+%fill([X, fliplr(X)], [ymu' + sqrt(ys2') fliplr(ymu' - sqrt(ys2'))], ...
+%  0.9*[1 1 1], 'EdgeColor', [1 1 1]);
+%hold on;
+
+confplot(X, ymu, sqrt(ys2)); hold on;
 plot(X, ymu, 'k-');
 
 hold on;

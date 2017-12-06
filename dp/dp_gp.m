@@ -8,7 +8,7 @@ density = 100;
 X = linspace(-xl, xl, density);
 markerSize = 15;
 fontSize = 30;
-dp_path = '/home/jakub/Documents/dp/img/';
+dp_path = '/home/jakub/Documents/vpdd2017active/img';
 
 %% prior & posterior
 exc = 1;
@@ -142,8 +142,12 @@ close all;
 handle = figure();
 set(handle, 'PaperPositionMode', 'auto');
 
+confplot(X, ymu, sqrt(ys2), sqrt(ys2), 'k');
+hold on;
+
 plot(X, ymu, 'Color', 'k');
 hold on;
+plot(X, ymu - sqrt(ys2), 'Color', [0, 0.5, 0]);
 plot(xs, ys, '+', 'Color', 'k', 'MarkerSize', markerSize);
 xlim([-xl, xl]);
 ylshift = 1;
@@ -154,7 +158,7 @@ ymin_ind = find(ymu == ymin, 1);
 xmin = X(ymin_ind);
 scale = 2.5;
 
-x0 = xmin + 1.5;
+x0 = xmin + 2;
 [zmu, zs2] = gp(hyp2, @infExact, meanfunc, covfunc, likfunc, xs', ys', x0);
 
 xpoi = linspace(-xl, xl, 1e4);
@@ -164,7 +168,7 @@ handle_poi = plot(xpoi, poi, 'Color', 'k');
 T = (zmu - ymin)/scale;
 xfill = xpoi(xpoi >= T);
 handle_fill = fill([xfill, fliplr(xfill)], [poi(end-length(xfill)+1:end), ...
-   repmat(0,1,length(xfill))], [0.8 0.8 0.8]);
+   repmat(0,1,length(xfill))], 'r');
 
 plot([-xl, xl], [zmu zmu], 'Color', 'k');
 plot([-xl, xl], [ymin ymin], 'Color', 'k');
@@ -185,7 +189,7 @@ ylabel('');
 xticks([x0]);
 yticks([ymin, zmu]);
 set(gca, 'TickLabelInterpreter', 'latex');
-xticklabels({'$x_\ast$'});
-yticklabels({'$T$', '$f_\ast(x_\ast)$'});
+xticklabels({'$x$'});
+yticklabels({'$T$', '$\hat{f}(x)$'});
 print(handle, '-depsc', fullfile(dp_path, 'gp_poi'));
 close all;
