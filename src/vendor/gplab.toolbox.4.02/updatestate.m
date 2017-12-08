@@ -51,10 +51,10 @@ state.adaptwindowsize=newadaptwindowsize;
 
 % ranking:
 if params.lowerisbetter
-   state.popranking=ranking(state.popadjustedfitness,0);
+   state.popranking=gplab_ranking(state.popadjustedfitness,0);
    % (use adjusted fitness because ranking is used in the selection process)
 else
-   state.popranking=ranking(state.popadjustedfitness,1);
+   state.popranking=gplab_ranking(state.popadjustedfitness,1);
 end
 % (ranking.m is used instead of sort so we can get rankings like 1,2,2,3,4,4,5,...)
 

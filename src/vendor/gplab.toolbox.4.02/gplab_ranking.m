@@ -1,4 +1,4 @@
-function r=ranking(v,descending)
+function r=gplab_ranking(v,descending)
 %RANKING    Ranks the elements of a vector.
 %   RANKING(VECTOR,DESCORDER) returns a vector containing the
 %   rank number of each element in VECTOR. If DESCORDER is true,
