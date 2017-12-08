@@ -208,6 +208,7 @@ classdef DoubleTrainedEC < EvolutionControl & Observable
       doubleTrainIteration = 0;
       nToReevalPerIteration = nPoints / obj.maxDoubleTrainIterations;
       notEverythingEvaluated = true;
+
       % main DTS re-evaluating cycle
       while (notEverythingEvaluated)
 
