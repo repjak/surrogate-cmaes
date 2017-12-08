@@ -55,7 +55,7 @@ for p=1:length(params.graphics)
          else
             lg=['''maximum: ' num2str(newpoint1(2,1)) '''' ',' '''median: ' num2str(newpoint1(2,2)) '''' ',' '''average: ' num2str(newpoint1(2,3)) '''' ',' '''avg - std: ' num2str(newpoint1(2,4)) '''' ',' '''avg + std: ' num2str(newpoint1(2,5)) '''' ',' '''best so far: ' num2str(newpoint1(2,6)) ''''];
          end
-   		ss=strcat('legend(',lg,',-1)');
+   		ss=strcat('legend(',lg,')');
    		legend off
    		eval(ss);
 		end
@@ -128,7 +128,7 @@ for p=1:length(params.graphics)
                lg=['''maximum size: ' num2str(newpoint2(2,1)) '''' ',' '''bestsofar size: ' num2str(newpoint2(2,2)) '''' ',' '''bestsofar introns: ' num2str(newpoint2(2,3)) '''' ',' '''bestsofar depth: ' num2str(newpoint2(2,4)/10) ''''];
             end
          end
-   		ss=strcat('legend(',lg,',-1)');
+   		ss=strcat('legend(',lg,')');
    		legend off
    		eval(ss);
 		end
@@ -152,7 +152,7 @@ for p=1:length(params.graphics)
            		lg=[lg ',''' params.calcdiversity{i} ': ' num2str(newpoint2a(2,i)) ''''];
          	end
       	end
-   	  	ss=strcat('legend(',lg,',-1)');
+   	  	ss=strcat('legend(',lg,')');
    		legend off
    		eval(ss);
    	end
@@ -226,7 +226,7 @@ for p=1:length(params.graphics)
          else
             legend34=[legend34 ',''' '# reproductions: ' num2str(state.reproductionhistory(end)) ''''];
          end
-      	ss=strcat('legend(',legend34,',-1)');
+      	ss=strcat('legend(',legend34,')');
       	legend off
 			eval(ss);
          % clonings:
@@ -238,7 +238,7 @@ for p=1:length(params.graphics)
                legend34=[legend34 ',''' '# clones ' legend34names{o} ': ' legend34values{o} ''''];
             end
          end
-      	ss=strcat('legend(',legend34,',-1)');
+      	ss=strcat('legend(',legend34,')');
       	legend off
 			eval(ss);
 
