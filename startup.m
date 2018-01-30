@@ -10,6 +10,7 @@ addpath(genpath(fullfile(pwd, 'exp/util')));
 addpath(genpath(fullfile(pwd, 'exp/vendor')));
 addpath(genpath(fullfile(pwd, 'exp/log')));
 addpath(fullfile(pwd, 'exp/experiments'));
+addpath(fullfile(pwd, 'src/vendor/gplab.toolbox.4.02'));
 
 % run('src/vendor/gpml-matlab-v3.2/startup.m');
 run('src/vendor/gpml_v4.0/startup.m');
